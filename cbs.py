@@ -19,6 +19,10 @@ SECS_IN_A_MIN = 60
 # Necessary globals
 last_cbs_mention = {}
 
+def s(timeUnit) -> str:
+    # Decides whether or not the given time unit needs an "s" after its declaration
+    return "s" if timeUnit > 1 or timeUnit == 0 else ""
+
 def is_match(message):
     # Returns true if the words "combo" and "based" show up (this can be VERY heavily improved lmao)
     return re.search(CBS_REGEX, unidecode(message.content))
@@ -26,20 +30,12 @@ def is_match(message):
 def format_timedelta(delta: datetime.timedelta) -> str:
     # Gets the number of days/hours/minutes/seconds in a user-readable string from a timedelta
     # Loosely based off of Miguendes' code here: https://miguendes.me/how-to-use-datetimetimedelta-in-python-with-examples
-
     seconds = int(delta.total_seconds())
-
     days, seconds = divmod(seconds, SECS_IN_A_DAY)
     hours, seconds = divmod(seconds, SECS_IN_A_HOUR)
     minutes, seconds = divmod(seconds, SECS_IN_A_MIN)
 
-    # Check if anything needs suffixes
-    d_sx = "s" if days > 1 or days == 0 else ""
-    h_sx = "s" if hours > 1 or days == 0 else ""
-    m_sx = "s" if minutes > 1 or days == 0 else ""
-    s_sx = "s" if seconds > 1 or days == 0 else ""
-
-    return f"{days} day{d_sx}, {hours} hour{h_sx}, {minutes} minute{m_sx} and {seconds} second{s_sx}"
+    return f"{days} day{s(days)}, {hours} hour{s(hours)}, {minutes} minute{s(minutes)} and {seconds} second{s(seconds)}"
 
 @client.event
 async def on_ready():
@@ -56,7 +52,9 @@ async def on_message(message):
     # Uncomment to temporarily disable the bot from messaging the Minnesota Rhythm Gaming Discord Server
     guildId = message.guild.id
     # if guildId == 190994300354560010:
-    #     return
+    # Uncomment to temporarily disable the bot from messaging the Minnesota Rhythm Gaming Discord Server
+    if guildId == 190994300354560010:
+        return
 
     # Check for a match, if it matches, send an appropriate message
     if is_match(message):
