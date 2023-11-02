@@ -46,7 +46,6 @@ async def on_ready():
 @client.event
 async def on_message(message):
     global last_cbs_mention
-    guildId = message.guild.id
 
     # Ignore the bot's messages
     if message.author.bot:
@@ -56,6 +55,7 @@ async def on_message(message):
     # if guildId == 190994300354560010:
     #     return
 
+    guildId = message.guild.id
     if is_match(message):
         this_cbs_mention = datetime.datetime.now()
         if str(guildId) in last_cbs_mention:
