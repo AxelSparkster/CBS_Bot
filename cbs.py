@@ -18,7 +18,7 @@ def is_match(message):
     return re.search(CBS_REGEX, message.content)
 
 def format_timedelta(delta: datetime.timedelta) -> str:
-    # Gets the number of days/hours/minutes/seconds in a user-readable string from a timedelta.
+    # Gets the number of days/hours/minutes/seconds in a user-readable string from a timedelta
     # Loosely based off of Miguendes' code here: https://miguendes.me/how-to-use-datetimetimedelta-in-python-with-examples
 
     seconds = int(delta.total_seconds())
@@ -31,7 +31,7 @@ def format_timedelta(delta: datetime.timedelta) -> str:
     hours, seconds = divmod(seconds, secs_in_a_hour)
     minutes, seconds = divmod(seconds, secs_in_a_min)
 
-    # Check if anything needs suffixes.
+    # Check if anything needs suffixes
     d_sx = "s" if days > 1 or days == 0 else ""
     h_sx = "s" if hours > 1 or days == 0 else ""
     m_sx = "s" if minutes > 1 or days == 0 else ""
@@ -50,7 +50,7 @@ async def on_message(message):
     # Always ignore the bot's messages
     if message.author.bot:
         return
-    # Uncomment to temporarily disable the bot from messaging the MN Rhythm Gaming discord.
+    # Uncomment to temporarily disable the bot from messaging the Minnesota Rhythm Gaming Discord Server
     # if guildId == 190994300354560010:
     #     return
 
@@ -60,16 +60,16 @@ async def on_message(message):
         this_cbs_mention = datetime.datetime.now()
         if str(guildId) in last_cbs_mention:
             # If we've seen someone mention combo based scoring before, then get the last time, find the timespan between now
-            # and the last time it was seen in that particular Discord server, and print it out to the user.
+            # and the last time it was seen in that particular Discord server, and print it out to the user
             cbs_timespan = this_cbs_mention - last_cbs_mention[str(guildId)]
             timestring = format_timedelta(cbs_timespan)
             await message.channel.send(f"It has now been {timestring} since the last time someone has mentioned combo-based scoring!")
         else:
-            # If this is the first time we've seen anyone mention combo based scoring, then say an initial message.
+            # If this is the first time we've seen anyone mention combo based scoring, then say an initial message
             last_cbs_mention[str(guildId)] = this_cbs_mention
             await message.channel.send("Someone just mentioned combo based scoring for the first time!")
 
-        # For the given Discord server, store the last time combo-based scoring was mentioned.
+        # For the given Discord server, store the last time combo-based scoring was mentioned
         last_cbs_mention[str(guildId)] = this_cbs_mention
 
 if __name__ == "__main__":
