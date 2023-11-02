@@ -10,8 +10,13 @@ intents.messages = True
 intents.message_content = True
 client = discord.Client(intents=intents)
 
-# Necessary globals
+# Constants
 CBS_REGEX = "(?i)combo.*based|based.*combo"
+SECS_IN_A_DAY = 86400
+SECS_IN_A_HOUR = 3600
+SECS_IN_A_MIN = 60
+
+# Necessary globals
 last_cbs_mention = {}
 
 def is_match(message):
@@ -24,13 +29,9 @@ def format_timedelta(delta: datetime.timedelta) -> str:
 
     seconds = int(delta.total_seconds())
 
-    secs_in_a_day = 86400
-    secs_in_a_hour = 3600
-    secs_in_a_min = 60
-
-    days, seconds = divmod(seconds, secs_in_a_day)
-    hours, seconds = divmod(seconds, secs_in_a_hour)
-    minutes, seconds = divmod(seconds, secs_in_a_min)
+    days, seconds = divmod(seconds, SECS_IN_A_DAY)
+    hours, seconds = divmod(seconds, SECS_IN_A_HOUR)
+    minutes, seconds = divmod(seconds, SECS_IN_A_MIN)
 
     # Check if anything needs suffixes
     d_sx = "s" if days > 1 or days == 0 else ""
