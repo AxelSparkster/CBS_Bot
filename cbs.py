@@ -47,14 +47,14 @@ async def on_ready():
 async def on_message(message):
     global last_cbs_mention
 
-    # Ignore the bot's messages
+    # Always ignore the bot's messages
     if message.author.bot:
         return
-
     # Uncomment to temporarily disable the bot from messaging the MN Rhythm Gaming discord.
     # if guildId == 190994300354560010:
     #     return
 
+    # Check for a match, if it matches, send an appropriate message
     guildId = message.guild.id
     if is_match(message):
         this_cbs_mention = datetime.datetime.now()
