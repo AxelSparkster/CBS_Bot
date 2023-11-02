@@ -1,6 +1,7 @@
 import discord
 import re
 import datetime
+from unidecode import unidecode
 
 # Discord bot related junk
 API_TOKEN = '<INSERT TOKEN HERE>'
@@ -15,7 +16,7 @@ last_cbs_mention = {}
 
 def is_match(message):
     # Returns true if the words "combo" and "based" show up (this can be VERY heavily improved lmao)
-    return re.search(CBS_REGEX, message.content)
+    return re.search(CBS_REGEX, unidecode(message.content))
 
 def format_timedelta(delta: datetime.timedelta) -> str:
     # Gets the number of days/hours/minutes/seconds in a user-readable string from a timedelta
