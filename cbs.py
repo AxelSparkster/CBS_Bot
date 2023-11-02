@@ -10,12 +10,12 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 # Necessary globals
-cbs_regex = "(?i)combo.*based|based.*combo"
+CBS_REGEX = "(?i)combo.*based|based.*combo"
 last_cbs_mention = {}
 
 def is_match(message):
     # Returns true if the words "combo" and "based" show up (this can be VERY heavily improved lmao)
-    return re.search(cbs_regex, message.content)
+    return re.search(CBS_REGEX, message.content)
 
 def format_timedelta(delta: datetime.timedelta) -> str:
     # Gets the number of days/hours/minutes/seconds in a user-readable string from a timedelta.
