@@ -48,13 +48,11 @@ async def on_message(message):
     # Always ignore the bot's messages
     if message.author.bot:
         return
-        
-    # Uncomment to temporarily disable the bot from messaging the Minnesota Rhythm Gaming Discord Server
+
     guildId = message.guild.id
-    # if guildId == 190994300354560010:
     # Uncomment to temporarily disable the bot from messaging the Minnesota Rhythm Gaming Discord Server
-    if guildId == 190994300354560010:
-        return
+    # if guildId == 190994300354560010:
+    #     return
 
     # Check for a match, if it matches, send an appropriate message
     if is_match(message):
