@@ -19,9 +19,9 @@ SECS_IN_A_MIN = 60
 # Necessary globals
 last_cbs_mention = {}
 
-def s(timeUnit) -> str:
+def s(time_unit) -> str:
     # Decides whether or not the given time unit needs an "s" after its declaration
-    return "s" if timeUnit > 1 or timeUnit == 0 else ""
+    return "s" if time_unit > 1 or time_unit == 0 else ""
 
 def is_match(message):
     # Returns true if the words "combo" and "based" show up (this can be VERY heavily improved lmao)
