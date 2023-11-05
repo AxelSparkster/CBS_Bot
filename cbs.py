@@ -17,7 +17,7 @@ SECS_IN_A_HOUR = 3600
 SECS_IN_A_MIN = 60
 
 # Necessary globals
-last_cbs_mention = {}
+last_cbs_mention_details = {}
 
 def s(time_unit) -> str:
     # Decides whether or not the given time unit needs an "s" after its declaration
@@ -43,7 +43,7 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    global last_cbs_mention
+    global last_cbs_mention_details
 
     # Always ignore bot messages
     if message.author.bot:
@@ -56,20 +56,22 @@ async def on_message(message):
 
     # Check for a match, if it matches, send an appropriate message
     if is_match(message):
-        this_cbs_mention = datetime.datetime.now()
-        if str(guild_id) in last_cbs_mention:
+        # Save basic details about the message
+        this_cbs_mention = {"message_id": message.id, "message": message.content, "author_id": message.author.id,
+            "author": message.author.display_name, "date": datetime.datetime.now()}
+
+        if str(guild_id) in last_cbs_mention_details:
             # If we've seen someone mention combo based scoring before, then get the last time, find the timespan between now
             # and the last time it was seen in that particular Discord server, and print it out to the user
-            cbs_timespan = this_cbs_mention - last_cbs_mention[str(guild_id)]
+            cbs_timespan = this_cbs_mention["date"] - last_cbs_mention_details[str(guild_id)]["date"]
             timestring = format_timedelta(cbs_timespan)
             await message.channel.send(f"It has now been {timestring} since the last time someone has mentioned combo-based scoring!")
         else:
             # If this is the first time we've seen anyone mention combo based scoring, then say an initial message
-            last_cbs_mention[str(guild_id)] = this_cbs_mention
             await message.channel.send("Someone just mentioned combo based scoring for the first time!")
 
         # For the given Discord server, store the last time combo-based scoring was mentioned
-        last_cbs_mention[str(guild_id)] = this_cbs_mention
+        last_cbs_mention_details[str(guild_id)] = this_cbs_mention
 
 if __name__ == "__main__":
     client.run(API_TOKEN)
