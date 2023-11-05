@@ -45,7 +45,7 @@ async def on_ready():
 async def on_message(message):
     global last_cbs_mention
 
-    # Always ignore the bot's messages
+    # Always ignore bot messages
     if message.author.bot:
         return
 
