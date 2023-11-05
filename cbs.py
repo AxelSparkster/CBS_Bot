@@ -1,6 +1,9 @@
 import discord
 import re
 import datetime
+import os
+import sys
+import pandas as pd
 from unidecode import unidecode
 
 # Discord bot related junk
@@ -11,6 +14,7 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 # Constants
+FILENAME = "cbs.csv"
 CBS_REGEX = "(?i)combo.*based|based.*combo"
 SECS_IN_A_DAY = 86400
 SECS_IN_A_HOUR = 3600
@@ -37,8 +41,31 @@ def format_timedelta(delta: datetime.timedelta) -> str:
 
     return f"{days} day{s(days)}, {hours} hour{s(hours)}, {minutes} minute{s(minutes)} and {seconds} second{s(seconds)}"
 
+def get_script_directory() -> str:
+    return os.path.dirname(os.path.abspath(sys.argv[0]))
+
+def load_previous_cbs_data():
+    # Load the contents of any saved data upon bot restart
+    global last_cbs_mention_details
+    cbs_file = pd.read_csv(FILENAME, index_col=0)
+    temp_dict = cbs_file.to_dict('index')
+    for val in temp_dict:
+        # TODO: Find a better way to load. Only did this because dealing with a dictionary of dictionaries
+        # is a pain in the ass with saving/loading and works for now
+        message_id = int(temp_dict[val]["message_id"])
+        message = temp_dict[val]["message"]
+        author_id = int(temp_dict[val]["author_id"])
+        author = temp_dict[val]["author"]
+        author = temp_dict[val]["author_username"]
+        date = datetime.datetime.fromisoformat(temp_dict[val]["date"])
+
+        last_cbs_mention_details[str(val)] = {"message_id": message_id, "message": message,
+        "author_id": author_id, "author": author, "date": date}
+
 @client.event
 async def on_ready():
+    if os.path.isfile("./" + FILENAME):
+        load_previous_cbs_data()
     await client.change_presence(activity=discord.Game('MAX 300 on repeat'))
 
 @client.event
@@ -58,7 +85,7 @@ async def on_message(message):
     if is_match(message):
         # Save basic details about the message
         this_cbs_mention = {"message_id": message.id, "message": message.content, "author_id": message.author.id,
-            "author": message.author.display_name, "date": datetime.datetime.now()}
+            "author": message.author.display_name, "author_username": message.author.name, "date": datetime.datetime.now()}
 
         if str(guild_id) in last_cbs_mention_details:
             # If we've seen someone mention combo based scoring before, then get the last time, find the timespan between now
@@ -72,6 +99,15 @@ async def on_message(message):
 
         # For the given Discord server, store the last time combo-based scoring was mentioned
         last_cbs_mention_details[str(guild_id)] = this_cbs_mention
+
+        # Save the data into a csv file
+        cbs_df = pd.DataFrame.from_dict(last_cbs_mention_details, orient="index")
+        if os.path.isfile("./" + FILENAME):
+            # TODO: Find a better way than to delete the file every single time (definitely not thread safe)
+            # IDEA: Maybe periodically save every X minutes in a different method, name it different,
+            # delete old file then rename it...?
+            os.remove(FILENAME) 
+        cbs_df.to_csv(FILENAME)
 
 if __name__ == "__main__":
     client.run(API_TOKEN)
