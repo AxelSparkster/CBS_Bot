@@ -12,6 +12,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Set Powershell Bypass (Windows Only)
+        shell: cmd
+        run:  |
+              if [ "$RUNNER_OS" == "Windows" ] then
+                powershell -Command "Set-ExecutionPolicy RemoteSigned -Scope CurrentUser"
+              fi
+
       - name: Run Container
         run: docker compose up -d --build
         env:
