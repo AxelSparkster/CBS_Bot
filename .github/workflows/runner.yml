@@ -10,7 +10,10 @@ jobs:
     environment: production
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout main branch
+        uses: actions/checkout@v3
+        with:
+          clean: false
 
       - name: Set Powershell Bypass (Windows Only)
         if: runner.os == 'Windows'
