@@ -7,11 +7,11 @@ import pandas as pd
 from unidecode import unidecode
 
 # Discord bot related junk
-intents = discord.Intents.default()
-intents.messages = True
-intents.message_content = True
-client = discord.Client(intents=intents)
 API_TOKEN = os.environ['TOKEN']
+INTENTS = discord.Intents.default()
+INTENTS.messages = True
+INTENTS.message_content = True
+CLIENT = discord.Client(intents=INTENTS)
 
 # Constants
 MNT_DATA_SUBDIR = "data/"
@@ -63,13 +63,13 @@ def load_previous_cbs_data():
         last_cbs_mention_details[str(val)] = {"message_id": message_id, "message": message,
         "author_id": author_id, "author": author, "date": date}
 
-@client.event
+@CLIENT.event
 async def on_ready():
     if os.path.isfile(MNT_DATA_SUBDIR + FILENAME):
         load_previous_cbs_data()
-    await client.change_presence(activity=discord.Game('MAX 300 on repeat'))
+    await CLIENT.change_presence(activity=discord.Game('MAX 300 on repeat'))
 
-@client.event
+@CLIENT.event
 async def on_message(message):
     global last_cbs_mention_details
 
@@ -111,4 +111,3 @@ async def on_message(message):
         cbs_df.to_csv(MNT_DATA_SUBDIR + FILENAME)
 
 if __name__ == "__main__":
-    client.run(API_TOKEN)
