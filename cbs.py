@@ -7,11 +7,11 @@ import pandas as pd
 from unidecode import unidecode
 
 # Discord bot related junk
-API_TOKEN = '<INSERT TOKEN HERE>'
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
 client = discord.Client(intents=intents)
+API_TOKEN = os.environ['TOKEN']
 
 # Constants
 MNT_DATA_SUBDIR = "data/"

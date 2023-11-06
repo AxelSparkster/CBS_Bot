@@ -5,3 +5,5 @@ services:
     container_name: cbs-bot
     volumes:
       - ./data:/usr/src/bot/data
+    environment:
+      - TOKEN
