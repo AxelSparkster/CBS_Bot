@@ -3,3 +3,5 @@ services:
   main:
     build: .
     container_name: cbs-bot
+    volumes:
+      - ./data:/usr/src/bot/data

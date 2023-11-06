@@ -14,6 +14,7 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 # Constants
+MNT_DATA_SUBDIR = "data/"
 FILENAME = "cbs.csv"
 CBS_REGEX = "(?i)combo.*based|based.*combo"
 SECS_IN_A_DAY = 86400
@@ -47,7 +48,7 @@ def get_script_directory() -> str:
 def load_previous_cbs_data():
     # Load the contents of any saved data upon bot restart
     global last_cbs_mention_details
-    cbs_file = pd.read_csv(FILENAME, index_col=0)
+    cbs_file = pd.read_csv(MNT_DATA_SUBDIR + FILENAME, index_col=0)
     temp_dict = cbs_file.to_dict('index')
     for val in temp_dict:
         # TODO: Find a better way to load. Only did this because dealing with a dictionary of dictionaries
@@ -64,7 +65,7 @@ def load_previous_cbs_data():
 
 @client.event
 async def on_ready():
-    if os.path.isfile("./" + FILENAME):
+    if os.path.isfile(MNT_DATA_SUBDIR + FILENAME):
         load_previous_cbs_data()
     await client.change_presence(activity=discord.Game('MAX 300 on repeat'))
 
@@ -106,8 +107,8 @@ async def on_message(message):
             # TODO: Find a better way than to delete the file every single time (definitely not thread safe)
             # IDEA: Maybe periodically save every X minutes in a different method, name it different,
             # delete old file then rename it...?
-            os.remove(FILENAME) 
-        cbs_df.to_csv(FILENAME)
+            os.remove(MNT_DATA_SUBDIR + FILENAME) 
+        cbs_df.to_csv(MNT_DATA_SUBDIR + FILENAME)
 
 if __name__ == "__main__":
     client.run(API_TOKEN)
