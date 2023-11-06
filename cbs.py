@@ -111,3 +111,4 @@ async def on_message(message):
         cbs_df.to_csv(MNT_DATA_SUBDIR + FILENAME)
 
 if __name__ == "__main__":
+    CLIENT.run(API_TOKEN)
