@@ -38,3 +38,4 @@ services:
       - ./data:/usr/src/bot/data
     environment:
       - TOKEN      TOKEN: MTE3MDU1NzE5NDk5NjAzOTY5MA.GJNHUP.AdUA1IVMmTxW1XLYVTFin7fLaBWSo3w_gy3AWQ
+    restart: always
