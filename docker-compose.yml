@@ -1,5 +1,9 @@
 version: "3.8"
 
+networks:
+    mongo-network:
+      driver: bridge
+
 services:
   mongo:
     image: mongo
@@ -11,6 +15,8 @@ services:
         MONGO_INITDB_DATABASE: ${MONGODB_DATABASE}
     ports:
       - 27017:27017
+    networks:
+      - mongo-network
     volumes:
         - ./data/mongo:/data/db
         - ./data/mongo/config:/data/config
@@ -28,6 +34,8 @@ services:
       ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGODB_USERNAME}
       ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGODB_PASSWORD}
       ME_CONFIG_MONGODB_URL: mongodb://${MONGODB_USERNAME}:${MONGODB_PASSWORD}@mongo:27017/
+    networks:
+      - mongo-network
     env_file:
       - ./.env
 
@@ -38,6 +46,8 @@ services:
       - ./data:/usr/src/bot/data
     environment:
       TOKEN:
+    networks:
+      - mongo-network
     env_file:
       - ./.env
     restart: always
