@@ -1,4 +1,5 @@
 
+import bson
 import datetime
 import discord
 import logging
@@ -72,7 +73,7 @@ async def on_message(message):
         if MESSAGE_COLLECTION.count_documents({}) > 0:
             # If we've seen someone mention combo based scoring before, then get the last time, find the timespan between now
             # and the last time it was seen in that particular Discord server, and print it out to the user
-            last_cbs_message = MESSAGE_COLLECTION.find({"guild_id": str(message.guild.id)}).sort({"created_at": -1}).limit(1).next()
+            last_cbs_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(message.guild.id)}).sort({"created_at": -1}).limit(1).next()
             cbs_timespan = this_cbs_message.created_at - last_cbs_message["created_at"].replace(tzinfo=tz('UTC')) # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
             timestring = format_timedelta(cbs_timespan)
             await message.channel.send(f"It has now been {timestring} since the last time someone has mentioned combo-based scoring!")
