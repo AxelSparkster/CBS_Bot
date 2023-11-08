@@ -1,11 +1,11 @@
-import discord
-import re
+
 import datetime
+import discord
 import os
-import sys
-import pandas as pd
 import pymongo
-import logging
+import re
+import sys
+from pytz import timezone as tz
 from unidecode import unidecode
 
 # Discord bot related junk
@@ -16,7 +16,9 @@ INTENTS.message_content = True
 CLIENT = discord.Client(intents=INTENTS)
 
 # MongoDB related junk
-MONGO_CLIENT = pymongo.MongoClient("mongodb://admin:1234@localhost:27017/fbw?authSource=admin")
+MONGO_CLIENT = pymongo.MongoClient(os.environ['MONGODB_URL'])
+CBS_DATABASE = MONGO_CLIENT["cbs-database"]
+MESSAGE_COLLECTION = CBS_DATABASE["message-collection"]
 
 # Constants
 MNT_DATA_SUBDIR = "data/"
@@ -49,7 +51,6 @@ def get_script_directory() -> str:
 
 @CLIENT.event
 async def on_ready():
-    dbs = MONGO_CLIENT.list_database_names()
     await CLIENT.change_presence(activity=discord.Game('MAX 300 on repeat'))
 
 @CLIENT.event
@@ -66,14 +67,12 @@ async def on_message(message):
     # Check for a match, if it matches, send an appropriate message
     if is_match(message):
         # Save basic details about the message
-        last_cbs_message = MESSAGE_COLLECTION.find().sort({"message.created_at": -1}).limit(1).next()
-        logging.warning("Last CBS message: " + last_cbs_message)
         this_cbs_message = message
-
-        if MESSAGE_COLLECTION.find().sort({"datetime": -1}).limit(1):
+        if MESSAGE_COLLECTION.count_documents({}) > 0:
             # If we've seen someone mention combo based scoring before, then get the last time, find the timespan between now
             # and the last time it was seen in that particular Discord server, and print it out to the user
-            cbs_timespan = this_cbs_message.created_at - last_cbs_message.created_at
+            last_cbs_message = MESSAGE_COLLECTION.find().sort({"created_at": -1}).limit(1).next()
+            cbs_timespan = this_cbs_message.created_at - last_cbs_message["created_at"].replace(tzinfo=tz('UTC')) # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
             timestring = format_timedelta(cbs_timespan)
             await message.channel.send(f"It has now been {timestring} since the last time someone has mentioned combo-based scoring!")
         else:
@@ -81,7 +80,12 @@ async def on_message(message):
             await message.channel.send("Someone just mentioned combo based scoring for the first time!")
 
         # Save the data to the MongoDB database
-        MESSAGE_COLLECTION.insert_one(message)
+        #
+        # Note: Unfortunately the Discord.py message object doesn't really play well with serialization or MongoDB,
+        # so we have to create our own dictionary. Yuck.
+        data = {"message_id": message.id, "message": message.content, "author_id": message.author.id,
+            "author": message.author.display_name, "author_username": message.author.name, "created_at": message.created_at}
+        MESSAGE_COLLECTION.insert_one(data)
 
 if __name__ == "__main__":
     CLIENT.run(API_TOKEN)
