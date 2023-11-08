@@ -3,7 +3,6 @@ import datetime
 import discord
 import logging
 import os
-import pandas as pd
 import pymongo
 import re
 import sys
@@ -23,10 +22,6 @@ MONGO_CLIENT = pymongo.MongoClient((f'mongodb://{urllib.parse.quote_plus(os.gete
                                     f'@mongo:27017/{os.getenv("MONGODB_DATABASE")}?authSource=admin'))
 CBS_DATABASE = MONGO_CLIENT["cbs-database"]
 MESSAGE_COLLECTION = CBS_DATABASE["message-collection"]
-
-# Near-obsoleted constants
-MNT_DATA_SUBDIR = "data/"
-FILENAME = "cbs.csv"
 
 # Constants
 CBS_REGEX = "(?i)combo.*based|based.*combo"
@@ -55,28 +50,8 @@ def format_timedelta(delta: datetime.timedelta) -> str:
 def get_script_directory() -> str:
     return os.path.dirname(os.path.abspath(sys.argv[0]))
 
-def load_previous_cbs_data():
-    # Transfer old CSV data into MongoDB
-    cbs_file = pd.read_csv(MNT_DATA_SUBDIR + FILENAME, index_col=0)
-    temp_dict = cbs_file.to_dict('index')
-    for val in temp_dict:
-        # TODO: Find a better way to load. Only did this because dealing with a dictionary of dictionaries
-        # is a pain in the ass with saving/loading and works for now
-        message_id = int(temp_dict[val]["message_id"])
-        message = temp_dict[val]["message"]
-        author_id = int(temp_dict[val]["author_id"])
-        author = temp_dict[val]["author"]
-        author_username = temp_dict[val]["author_username"]
-        date = datetime.datetime.fromisoformat(temp_dict[val]["date"])
-        data = {"message_id": message_id, "message": message, "author_id": author_id,
-            "author": author, "author_username": author_username, "created_at": date}
-        MESSAGE_COLLECTION.insert_one(data)
-    os.remove(MNT_DATA_SUBDIR + FILENAME) 
-
 @CLIENT.event
 async def on_ready():
-    if os.path.isfile(MNT_DATA_SUBDIR + FILENAME):
-        load_previous_cbs_data()
     await CLIENT.change_presence(activity=discord.Game('MAX 300 on repeat'))
 
 @CLIENT.event
@@ -110,7 +85,8 @@ async def on_message(message):
         # Note: Unfortunately the Discord.py message object doesn't really play well with serialization or MongoDB,
         # so we have to create our own dictionary. Yuck.
         data = {"message_id": message.id, "message": message.content, "author_id": message.author.id,
-            "author": message.author.display_name, "author_username": message.author.name, "created_at": message.created_at}
+            "author": message.author.display_name, "author_username": message.author.name, 
+            "created_at": message.created_at, "guild_id": message.guild.id}
         MESSAGE_COLLECTION.insert_one(data)
 
 if __name__ == "__main__":
