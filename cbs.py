@@ -1,28 +1,38 @@
-import discord
-import re
+
 import datetime
+import discord
+import logging
 import os
-import sys
 import pandas as pd
+import pymongo
+import re
+import sys
+import urllib.parse
+from pytz import timezone as tz
 from unidecode import unidecode
 
 # Discord bot related junk
-API_TOKEN = os.environ['TOKEN']
 INTENTS = discord.Intents.default()
 INTENTS.messages = True
 INTENTS.message_content = True
 CLIENT = discord.Client(intents=INTENTS)
 
-# Constants
+# MongoDB related junk
+MONGO_CLIENT = pymongo.MongoClient((f'mongodb://{urllib.parse.quote_plus(os.getenv("MONGODB_USERNAME"))}' +
+                                    f':{urllib.parse.quote_plus(os.getenv("MONGODB_PASSWORD"))}' +
+                                    f'@mongo:27017/{os.getenv("MONGODB_DATABASE")}?authSource=admin'))
+CBS_DATABASE = MONGO_CLIENT["cbs-database"]
+MESSAGE_COLLECTION = CBS_DATABASE["message-collection"]
+
+# Near-obsoleted constants
 MNT_DATA_SUBDIR = "data/"
 FILENAME = "cbs.csv"
+
+# Constants
 CBS_REGEX = "(?i)combo.*based|based.*combo"
 SECS_IN_A_DAY = 86400
 SECS_IN_A_HOUR = 3600
 SECS_IN_A_MIN = 60
-
-# Necessary globals
-last_cbs_mention_details = {}
 
 def s(time_unit) -> str:
     # Decides whether or not the given time unit needs an "s" after its declaration
@@ -46,8 +56,7 @@ def get_script_directory() -> str:
     return os.path.dirname(os.path.abspath(sys.argv[0]))
 
 def load_previous_cbs_data():
-    # Load the contents of any saved data upon bot restart
-    global last_cbs_mention_details
+    # Transfer old CSV data into MongoDB
     cbs_file = pd.read_csv(MNT_DATA_SUBDIR + FILENAME, index_col=0)
     temp_dict = cbs_file.to_dict('index')
     for val in temp_dict:
@@ -57,11 +66,12 @@ def load_previous_cbs_data():
         message = temp_dict[val]["message"]
         author_id = int(temp_dict[val]["author_id"])
         author = temp_dict[val]["author"]
-        author = temp_dict[val]["author_username"]
+        author_username = temp_dict[val]["author_username"]
         date = datetime.datetime.fromisoformat(temp_dict[val]["date"])
-
-        last_cbs_mention_details[str(val)] = {"message_id": message_id, "message": message,
-        "author_id": author_id, "author": author, "date": date}
+        data = {"message_id": message_id, "message": message, "author_id": author_id,
+            "author": author, "author_username": author_username, "created_at": date}
+        MESSAGE_COLLECTION.insert_one(data)
+    os.remove(MNT_DATA_SUBDIR + FILENAME) 
 
 @CLIENT.event
 async def on_ready():
@@ -71,44 +81,37 @@ async def on_ready():
 
 @CLIENT.event
 async def on_message(message):
-    global last_cbs_mention_details
 
     # Always ignore bot messages
     if message.author.bot:
         return
 
-    guild_id = message.guild.id
     # Uncomment to temporarily disable the bot from messaging the Minnesota Rhythm Gaming Discord Server
-    # if guildId == 190994300354560010:
+    # if message.guild.id == 190994300354560010:
     #     return
 
     # Check for a match, if it matches, send an appropriate message
     if is_match(message):
         # Save basic details about the message
-        this_cbs_mention = {"message_id": message.id, "message": message.content, "author_id": message.author.id,
-            "author": message.author.display_name, "author_username": message.author.name, "date": datetime.datetime.now()}
-
-        if str(guild_id) in last_cbs_mention_details:
+        this_cbs_message = message
+        if MESSAGE_COLLECTION.count_documents({}) > 0:
             # If we've seen someone mention combo based scoring before, then get the last time, find the timespan between now
             # and the last time it was seen in that particular Discord server, and print it out to the user
-            cbs_timespan = this_cbs_mention["date"] - last_cbs_mention_details[str(guild_id)]["date"]
+            last_cbs_message = MESSAGE_COLLECTION.find().sort({"created_at": -1}).limit(1).next()
+            cbs_timespan = this_cbs_message.created_at - last_cbs_message["created_at"].replace(tzinfo=tz('UTC')) # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
             timestring = format_timedelta(cbs_timespan)
             await message.channel.send(f"It has now been {timestring} since the last time someone has mentioned combo-based scoring!")
         else:
             # If this is the first time we've seen anyone mention combo based scoring, then say an initial message
             await message.channel.send("Someone just mentioned combo based scoring for the first time!")
 
-        # For the given Discord server, store the last time combo-based scoring was mentioned
-        last_cbs_mention_details[str(guild_id)] = this_cbs_mention
-
-        # Save the data into a csv file
-        cbs_df = pd.DataFrame.from_dict(last_cbs_mention_details, orient="index")
-        if os.path.isfile("./" + FILENAME):
-            # TODO: Find a better way than to delete the file every single time (definitely not thread safe)
-            # IDEA: Maybe periodically save every X minutes in a different method, name it different,
-            # delete old file then rename it...?
-            os.remove(MNT_DATA_SUBDIR + FILENAME) 
-        cbs_df.to_csv(MNT_DATA_SUBDIR + FILENAME)
+        # Save the data to the MongoDB database
+        #
+        # Note: Unfortunately the Discord.py message object doesn't really play well with serialization or MongoDB,
+        # so we have to create our own dictionary. Yuck.
+        data = {"message_id": message.id, "message": message.content, "author_id": message.author.id,
+            "author": message.author.display_name, "author_username": message.author.name, "created_at": message.created_at}
+        MESSAGE_COLLECTION.insert_one(data)
 
 if __name__ == "__main__":
-    CLIENT.run(API_TOKEN)
+    CLIENT.run(os.environ['TOKEN'])

@@ -12,6 +12,8 @@ A list of the, like, three things it does:
 You'll need to do two things to get this to work:
 * Run `pip install -r requirements.txt` in the project directory
 * Add your own token (explained in the next section)
+* Make a .env file
+* Run the Docker process
 
 ## Using CBS Bot
 
@@ -28,26 +30,28 @@ Therefore, you'll need to do some nonsense if you want to test changes or set up
        * Scopes: Tick `"bot"`
        * Bot Permissions: Tick `"Send Messages"` and `"Manage Messages"`
        * Take the generated URL, go to it and then add it to whatever server you want
-   * Run cbs.py
-
-Theoretically, if you have enough Docker container knowledge, you could also throw the token into the Docker Compose file and probably do `docker compose up -d --build`, but at the current moment I need caffeine and am too lazy to figure out if what I just put in writing works, so you might just need to fuck with it a bit.
+   * Create a .env file with three properties:
+       * MONGODB_USERNAME=\<something\>
+       * MONGODB_PASSWORD=\<something\>
+       * MONGODB_DATABASE=\<something\>
+   * Do `docker compose up -d --build`, but at the current moment I need caffeine and am too lazy to figure out if what I just put in writing works, so you might just need to fuck with it a bit.
 
 ## Dependencies
 
 * Python 3.5 or higher
 
 Modules:
-* `discord.py` (for discord client stuff)
-* `python-dotenv` (duh)
-* `re` (for regex functions - checking if the words exist in each message)
 * `datetime` (to get last combo-based scoring mention)
-* `os/sys` (grouping these together, these are for getting the script directory, but may change this later to something that looks more safe)
-* `pandas` (Reading/saving CSV files, soon to be deprecated)
+* `discord.py` (for discord client stuff)
+* `os` (to get script directory - might find a different/safer option later)
+* `pymongo` (for dealing with MongoDB databased)
+* `re` (for regex functions - checking if the words exist in each message)
+* `sys` (to get script directory - might find a different/safer option later)
+* `pytz` (Fixes timezone nonsense when loading data back from MongoDB)
 * `unidecode` (Attempt to prevent people from getting around the bot by using Unicode stuff)
 
 ## Future/Potential Upgrades
 
-* Use MongoDB instead of a shitty CSV file 
 * Restructure the project to make it cleaner
 * Better detection of combo-based scoring mentions
 * More features in general
