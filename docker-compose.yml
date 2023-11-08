@@ -38,5 +38,6 @@ services:
       - ./data:/usr/src/bot/data
     environment:
       TOKEN:
-      MONGODB_URL: mongodb://${MONGODB_USERNAME}:${MONGODB_PASSWORD}@mongo:27017/${MONGODB_DATABASE}?authSource=admin
+    env_file:
+      - ./.env
     restart: always
