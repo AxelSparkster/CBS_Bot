@@ -9,7 +9,6 @@ from pytz import timezone as tz
 from unidecode import unidecode
 
 # Discord bot related junk
-API_TOKEN = os.environ['TOKEN']
 INTENTS = discord.Intents.default()
 INTENTS.messages = True
 INTENTS.message_content = True
@@ -88,4 +87,3 @@ async def on_message(message):
         MESSAGE_COLLECTION.insert_one(data)
 
 if __name__ == "__main__":
-    CLIENT.run(API_TOKEN)
