@@ -2,12 +2,15 @@
 import bson
 import datetime
 import discord
+import json
 import logging
 import os
 import pymongo
+import random
 import re
 import sys
 import urllib.parse
+from discord.ext import commands
 from pytz import timezone as tz
 from unidecode import unidecode
 
@@ -15,7 +18,7 @@ from unidecode import unidecode
 INTENTS = discord.Intents.default()
 INTENTS.messages = True
 INTENTS.message_content = True
-CLIENT = discord.Client(intents=INTENTS)
+DISCORD_CLIENT = commands.Bot(command_prefix = "$cbs ", intents=INTENTS)
 
 # MongoDB related junk
 MONGO_CLIENT = pymongo.MongoClient((f'mongodb://{urllib.parse.quote_plus(os.getenv("MONGODB_USERNAME"))}' +
@@ -51,11 +54,19 @@ def format_timedelta(delta: datetime.timedelta) -> str:
 def get_script_directory() -> str:
     return os.path.dirname(os.path.abspath(sys.argv[0]))
 
-@CLIENT.event
-async def on_ready():
-    await CLIENT.change_presence(activity=discord.Game('MAX 300 on repeat'))
+@DISCORD_CLIENT.command()
+async def possum(ctx):
+    # Gets random possum image :)
+    random_possum_word = random.choice(["sitting", "standing", "scream", "confused", "baby", "rolling", "dumb", "cute", "cool", "meme"])
+    request = urllib.request.Request(f'https://www.googleapis.com/customsearch/v1?key={os.getenv("GIS_API_KEY")}' +
+        f'&cx={os.getenv("GIS_PROJECT_CX")}&q=opossum%20{random_possum_word}&searchType=image')
+    logging.warning(f'https://www.googleapis.com/customsearch/v1?key={os.getenv("GIS_API_KEY")}' +
+        f'&cx={os.getenv("GIS_PROJECT_CX")}&q=opossum%20{random_possum_word}&searchType=image')
+    with urllib.request.urlopen(request) as f:
+        data = f.read().decode('utf-8')
+    await ctx.message.channel.send(random.choice(json.loads(data)['items'])['link'])
 
-@CLIENT.event
+@DISCORD_CLIENT.event
 async def on_message(message):
 
     # Always ignore bot messages
@@ -89,6 +100,13 @@ async def on_message(message):
             "author": message.author.display_name, "author_username": message.author.name, 
             "created_at": message.created_at, "guild_id": message.guild.id}
         MESSAGE_COLLECTION.insert_one(data)
+    
+    # Process any bot commands normally using the discord.py library.
+    await DISCORD_CLIENT.process_commands(message)
+
+@DISCORD_CLIENT.event
+async def on_ready():
+    await DISCORD_CLIENT.change_presence(activity=discord.Game('MAX 300 on repeat'))
 
 if __name__ == "__main__":
-    CLIENT.run(os.environ['TOKEN'])
+    DISCORD_CLIENT.run(os.environ['TOKEN'])
