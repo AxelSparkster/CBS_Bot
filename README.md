@@ -59,6 +59,11 @@ Modules:
 * `pytz` (Fixes timezone nonsense when loading data back from MongoDB)
 * `unidecode` (Attempt to prevent people from getting around the bot by using Unicode stuff)
 
+## Commands
+
+Currently supported commands:
+* `$cbs possum` - Posts a random picture of a possum.
+
 ## Future/Potential Upgrades
 
 * Restructure the project to make it cleaner
