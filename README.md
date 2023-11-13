@@ -30,17 +30,17 @@ Therefore, you'll need to do some nonsense if you want to test changes or set up
        * Scopes: Tick `"bot"`
        * Bot Permissions: Tick `"Send Messages"` and `"Manage Messages"`
        * Take the generated URL, go to it and then add it to whatever server you want
-   * Go to Google CSE to get the API key and Project CX ID
-       * You can get those here:
-           * API key: https://console.developers.google.com/apis/credentials
-           * Project CX: https://cse.google.com/cse/all 
-   * Create a .env file with these properties:
-       * MONGODB_USERNAME=\<something\>
-       * MONGODB_PASSWORD=\<something\>
-       * MONGODB_DATABASE=\<something\>
-       * GIS_API_KEY=\<something\>
-       * GIS_PROJECT_CX=\<something\>
-   * Do `docker compose up -d --build`, but at the current moment I need caffeine and am too lazy to figure out if what I just put in writing works, so you might just need to fuck with it a bit.
+* Go to Google CSE to get the API key and Project CX ID
+   * You can get those here:
+       * API key: https://console.developers.google.com/apis/credentials
+       * Project CX: https://cse.google.com/cse/all 
+* Create a .env file with these properties:
+    * MONGODB_USERNAME=\<something\>
+    * MONGODB_PASSWORD=\<something\>
+    * MONGODB_DATABASE=\<something\>
+    * GIS_API_KEY=\<something\>
+    * GIS_PROJECT_CX=\<something\>
+* Do `docker compose up -d --build`, but at the current moment I need caffeine and am too lazy to figure out if what I just put in writing works, so you might just need to fuck with it a bit.
 
 ## Dependencies
 
@@ -68,6 +68,9 @@ Currently supported commands:
 
 * Restructure the project to make it cleaner
 * Better detection of combo-based scoring mentions
+* Get the script directory in a potentially better way?
+* A `$cbs statistics` command to show top 5 or so people who mention "combo based" by querying the database
+* A `$cbs lastmessage` command to show the last message, and link to it
 * More features in general
 
 ## Contributing
