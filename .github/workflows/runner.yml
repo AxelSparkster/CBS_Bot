@@ -3,6 +3,8 @@ name: Docker Runner
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - '**/README.md'
 
 jobs:
   run:
