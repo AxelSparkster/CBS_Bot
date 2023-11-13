@@ -60,8 +60,6 @@ async def possum(ctx):
     random_possum_word = random.choice(["sitting", "standing", "scream", "confused", "baby", "rolling", "dumb", "cute", "cool", "meme"])
     request = urllib.request.Request(f'https://www.googleapis.com/customsearch/v1?key={os.getenv("GIS_API_KEY")}' +
         f'&cx={os.getenv("GIS_PROJECT_CX")}&q=opossum%20{random_possum_word}&searchType=image')
-    logging.warning(f'https://www.googleapis.com/customsearch/v1?key={os.getenv("GIS_API_KEY")}' +
-        f'&cx={os.getenv("GIS_PROJECT_CX")}&q=opossum%20{random_possum_word}&searchType=image')
     with urllib.request.urlopen(request) as f:
         data = f.read().decode('utf-8')
     await ctx.message.channel.send(random.choice(json.loads(data)['items'])['link'])
