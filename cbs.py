@@ -9,9 +9,10 @@ import pymongo
 import random
 import re
 import sys
+import time
 import urllib.parse
+from dateutil import tz
 from discord.ext import commands
-from pytz import timezone as tz
 from unidecode import unidecode
 
 # Discord bot related junk
@@ -35,7 +36,7 @@ SECS_IN_A_MIN = 60
 
 def s(time_unit) -> str:
     # Decides whether or not the given time unit needs an "s" after its declaration
-    return "s" if time_unit > 1 or time_unit == 0 else ""
+    return "s" if time_unit != 1 else ""
 
 def is_match(message):
     # Returns true if the words "combo" and "based" show up (this can be VERY heavily improved lmao)
@@ -51,8 +52,29 @@ def format_timedelta(delta: datetime.timedelta) -> str:
 
     return f"{days} day{s(days)}, {hours} hour{s(hours)}, {minutes} minute{s(minutes)} and {seconds} second{s(seconds)}"
 
+def convert_to_unix_time(date: datetime.datetime) -> str:
+    return f'<t:{str(time.mktime(date.timetuple()))[:-2]}:R>'
+
 def get_script_directory() -> str:
     return os.path.dirname(os.path.abspath(sys.argv[0]))
+
+@DISCORD_CLIENT.command()
+async def lastmessage(ctx):
+    # Gets details of last message
+    last_cbs_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id)}).sort({"created_at": -1}).limit(1).next()
+    last_cbs_message_link = f'https://canary.discord.com/channels/{last_cbs_message["guild_id"]}/{last_cbs_message["channel_id"]}/{last_cbs_message["message_id"]}'
+    preface_message = (f'The last mention of combo-based scoring was {convert_to_unix_time(last_cbs_message["created_at"])} by '
+                       f'<@{last_cbs_message["author_id"]}>, which was here: {last_cbs_message_link}\n\n')
+    localized_date = last_cbs_message["created_at"].replace(tzinfo=tz.gettz('UTC')).astimezone(tz.gettz('America/Chicago'))
+
+    embed = discord.Embed(color=discord.Color.red())
+    embed.set_author(name=f'{last_cbs_message["author"]}', icon_url=f'{last_cbs_message["avatar_url"]}')
+    embed.add_field(name='Message', value=f'{last_cbs_message["message"]}', inline=False)
+    embed.add_field(name='Date', value=f'{localized_date.strftime("%B %d, %Y %I:%M %p %Z%z")}', inline=False)
+    embed.set_footer(text="Note: This message is sent silently and does not ping users.")
+
+    await ctx.send(content=f'{preface_message}', embed=embed, silent=True)
+
 
 @DISCORD_CLIENT.command()
 async def possum(ctx):
@@ -83,7 +105,7 @@ async def on_message(message):
             # If we've seen someone mention combo based scoring before, then get the last time, find the timespan between now
             # and the last time it was seen in that particular Discord server, and print it out to the user
             last_cbs_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(message.guild.id)}).sort({"created_at": -1}).limit(1).next()
-            cbs_timespan = message.created_at - last_cbs_message["created_at"].replace(tzinfo=tz('UTC')) # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
+            cbs_timespan = message.created_at - last_cbs_message["created_at"].replace(tzinfo=tz.tzutc()) # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
             timestring = format_timedelta(cbs_timespan)
             await message.channel.send(f"It has now been {timestring} since the last time someone has mentioned combo-based scoring!")
         else:
@@ -96,7 +118,8 @@ async def on_message(message):
         # so we have to create our own dictionary. Yuck.
         data = {"message_id": message.id, "message": message.content, "author_id": message.author.id,
             "author": message.author.display_name, "author_username": message.author.name, 
-            "created_at": message.created_at, "guild_id": message.guild.id}
+            "created_at": message.created_at, "channel_id": message.channel.id,"guild_id": message.guild.id,
+            "avatar_url": message.author.avatar.url}
         MESSAGE_COLLECTION.insert_one(data)
     
     # Process any bot commands normally using the discord.py library.
