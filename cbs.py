@@ -94,8 +94,8 @@ async def on_message(message):
         return
 
     # Uncomment to temporarily disable the bot from messaging the Minnesota Rhythm Gaming Discord Server
-    # if message.guild.id == 190994300354560010:
-    #     return
+    if message.guild.id == 190994300354560010:
+        return
 
     # Check for a match, if it matches, send an appropriate message
     if is_match(message):
