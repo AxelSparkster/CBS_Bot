@@ -67,6 +67,7 @@ Modules:
 
 Currently supported commands:
 * `$cbs possum` - Posts a random picture of a possum.
+* `$cbs lastmessage` - Shows the last CBS message, with information and a link to it
 
 ## Future/Potential Upgrades
 
@@ -74,7 +75,6 @@ Currently supported commands:
 * Better detection of combo-based scoring mentions
 * Get the script directory in a potentially better way?
 * A `$cbs statistics` command to show top 5 or so people who mention "combo based" by querying the database
-* A `$cbs lastmessage` command to show the last message, and link to it
 * More features in general
 
 ## Contributing
