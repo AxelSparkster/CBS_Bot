@@ -47,17 +47,21 @@ Therefore, you'll need to do some nonsense if you want to test changes or set up
 * Python 3.5 or higher
 
 Modules:
-* `datetime` (to get last combo-based scoring mention)
-* `discord.py` (for discord client stuff)
-* `os` (to get script directory - might find a different/safer option later)
-* `json` (to get random possum image from google CSE)
-* `pymongo` (for dealing with MongoDB databased)
-* `random` (to help get random possum image)
-* `re` (for regex functions - checking if the words exist in each message)
-* `sys` (to get script directory - might find a different/safer option later)
-* `discord.ext` (Extended discord.py library)
-* `pytz` (Fixes timezone nonsense when loading data back from MongoDB)
-* `unidecode` (Attempt to prevent people from getting around the bot by using Unicode stuff)
+* `bson` - to help handle Int64 objects in some of the Discord objects
+* `datetime` - to get last combo-based scoring mention
+* `discord.py` - for discord client stuff
+* `json` - to get random possum image from google CSE
+* `logging` - to get random possum image from google CSE
+* `os` - to get script directory - might find a different/safer option later
+* `pymongo` - for dealing with MongoDB databased
+* `random` - to help get random possum image
+* `re` - for regex functions - checking if the words exist in each message
+* `sys` - to get script directory - might find a different/safer option later
+* `time` - to get UNIX timestamp for Discord timestamps
+* `urllib.parse` - to help create possum images
+* `dateutil` - fixes timezone nonsense when loading data back from MongoDB
+* `discord.ext` - extended discord.py library
+* `unidecode` - attempt to prevent people from getting around the bot by using Unicode stuff
 
 ## Commands
 
