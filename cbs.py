@@ -98,7 +98,7 @@ async def on_message(message):
         return
 
     # Edit the .env file to allow/disallow the bot from running in the MNRG server:
-    if MNRG_DISABLE:
+    if message.guild.id == 190994300354560010 and  MNRG_DISABLE:
         return
 
     # Check for a match, if it matches, send an appropriate message
