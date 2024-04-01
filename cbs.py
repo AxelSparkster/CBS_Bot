@@ -34,6 +34,9 @@ SECS_IN_A_DAY = 86400
 SECS_IN_A_HOUR = 3600
 SECS_IN_A_MIN = 60
 
+# Global settings
+MNRG_DISABLE = True
+
 def s(time_unit) -> str:
     # Decides whether or not the given time unit needs an "s" after its declaration
     return "s" if time_unit != 1 else ""
@@ -79,9 +82,10 @@ async def lastmessage(ctx):
 @DISCORD_CLIENT.command()
 async def possum(ctx):
     # Gets random possum image :)
+    random_number = random.randint(0,9999)
     random_possum_word = random.choice(["sitting", "standing", "scream", "confused", "baby", "rolling", "dumb", "cute", "cool", "meme"])
     request = urllib.request.Request(f'https://www.googleapis.com/customsearch/v1?key={os.getenv("GIS_API_KEY")}' +
-        f'&cx={os.getenv("GIS_PROJECT_CX")}&q=opossum%20{random_possum_word}&searchType=image')
+        f'&cx={os.getenv("GIS_PROJECT_CX")}&q=opossum%20{random_possum_word}%20{str(random_number)}&searchType=image')
     with urllib.request.urlopen(request) as f:
         data = f.read().decode('utf-8')
     await ctx.message.channel.send(random.choice(json.loads(data)['items'])['link'])
@@ -93,9 +97,9 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # Uncomment to temporarily disable the bot from messaging the Minnesota Rhythm Gaming Discord Server
-    # if message.guild.id == 190994300354560010:
-    #     return
+    # Edit the .env file to allow/disallow the bot from running in the MNRG server:
+    if MNRG_DISABLE:
+        return
 
     # Check for a match, if it matches, send an appropriate message
     if is_match(message):
@@ -130,4 +134,5 @@ async def on_ready():
     await DISCORD_CLIENT.change_presence(activity=discord.Game('MAX 300 on repeat'))
 
 if __name__ == "__main__":
+    MNRG_DISABLE = os.getenv("MNRG_DISABLE", 'True').lower() in ('true', '1', 't')
     DISCORD_CLIENT.run(os.environ['TOKEN'])
