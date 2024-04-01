@@ -34,9 +34,6 @@ SECS_IN_A_DAY = 86400
 SECS_IN_A_HOUR = 3600
 SECS_IN_A_MIN = 60
 
-# Global settings
-MNRG_DISABLE = os.getenv("MNRG_DISABLE", 'True').lower() in ('true', '1', 't')
-
 def s(time_unit) -> str:
     # Decides whether or not the given time unit needs an "s" after its declaration
     return "s" if time_unit != 1 else ""
@@ -97,7 +94,8 @@ async def on_message(message):
         return
 
     # Edit the .env file to allow/disallow the bot from running in the MNRG server:
-    if message.guild.id == 190994300354560010 and MNRG_DISABLE:
+    mnrg_disabled = os.getenv("MNRG_DISABLE", 'True').lower() in ('true', '1', 't')
+    if message.guild.id == 190994300354560010 and mnrg_disabled:
         return
 
     # Check for a match, if it matches, send an appropriate message
