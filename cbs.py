@@ -59,23 +59,30 @@ def convert_to_unix_time(date: datetime.datetime) -> str:
 def get_script_directory() -> str:
     return os.path.dirname(os.path.abspath(sys.argv[0]))
 
-@DISCORD_CLIENT.command()
-async def shutup(ctx):
+@DISCORD_CLIENT.hybrid_command(name="sync", description="(Owner/Admin only) Syncs the command tree.")
+async def sync(ctx) -> None:
+    if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
+        await DISCORD_CLIENT.tree.sync()
+        logging.warning("Command tree synced.")
+        await ctx.message.channel.send("Command tree synced.")
+
+@DISCORD_CLIENT.hybrid_command(name="shutup", description="(Owner/Admin only) Disables the bot from messaging in the server.")
+async def shutup(ctx) -> None:
     if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
         logging.warning(f"Disabling messages for guild ID {ctx.message.guild.id}.")
         SETTINGS_COLLECTION.update_one({"guild_id": bson.int64.Int64(ctx.message.guild.id)}, {"$set": { "message_enabled": False }})
         await ctx.message.channel.send("Messages have been disabled.")
 
-@DISCORD_CLIENT.command()
-async def getupanddanceman(ctx):
+@DISCORD_CLIENT.hybrid_command(name="getupanddanceman", description="(Owner/Admin only) Reenables the bot's ability to message in the server.")
+async def getupanddanceman(ctx) -> None:
     if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
         logging.warning(f"Enabling messages for guild ID {ctx.message.guild.id}.")
         SETTINGS_COLLECTION.update_one({"guild_id": bson.int64.Int64(ctx.message.guild.id)}, {"$set": { "message_enabled": True }})
         await ctx.message.channel.send("Messages have been enabled.")
 
-@DISCORD_CLIENT.command()
+@DISCORD_CLIENT.hybrid_command(name="lastmessage", description="Gets information about the last time combo-based scoring was mentioned. 1 time/user/day.")
 @commands.cooldown(1, 86400, commands.BucketType.guild)
-async def lastmessage(ctx):
+async def lastmessage(ctx) -> None:
     # Get details of last message
     #
     last_cbs_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id)}).sort({"created_at": -1}).limit(1).next()
@@ -94,9 +101,9 @@ async def lastmessage(ctx):
 
     await ctx.send(content=f'{preface_message}', embed=embed, silent=True)
 
-@DISCORD_CLIENT.command()
+@DISCORD_CLIENT.hybrid_command(name="possum", description="Get a random possum image. 2 times/user/day.")
 @commands.cooldown(2, 86400, commands.BucketType.guild)
-async def possum(ctx):
+async def possum(ctx) -> None:
     # Gets random possum image :)
     random_possum_word = random.choice(["sitting", "standing", "scream", "confused", "baby", "rolling", "dumb", "cute", "cool", "meme"])
     request = urllib.request.Request(f'https://www.googleapis.com/customsearch/v1?key={os.getenv("GIS_API_KEY")}' +
