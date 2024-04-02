@@ -8,6 +8,7 @@ import os
 import pymongo
 import random
 import re
+import requests
 import sys
 import time
 import urllib.parse
@@ -104,13 +105,8 @@ async def lastmessage(ctx) -> None:
 @DISCORD_CLIENT.hybrid_command(name="possum", description="Get a random possum image. 2 times/user/day.")
 @commands.cooldown(2, 86400, commands.BucketType.guild)
 async def possum(ctx) -> None:
-    # Gets random possum image :)
-    random_possum_word = random.choice(["sitting", "standing", "scream", "confused", "baby", "rolling", "dumb", "cute", "cool", "meme"])
-    request = urllib.request.Request(f'https://www.googleapis.com/customsearch/v1?key={os.getenv("GIS_API_KEY")}' +
-        f'&cx={os.getenv("GIS_PROJECT_CX")}&q=opossum%20{random_possum_word}&searchType=image')
-    with urllib.request.urlopen(request) as f:
-        data = f.read().decode('utf-8')
-    await ctx.message.channel.send(random.choice(json.loads(data)['items'])['link'])
+    seed = random.uniform(0, 100000000000000)
+    await ctx.message.channel.send(f"https://api.tinyfox.dev/img?animal=poss&t={seed}")
 
 @DISCORD_CLIENT.event
 async def on_message(message):
