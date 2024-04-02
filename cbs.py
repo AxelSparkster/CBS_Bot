@@ -93,11 +93,6 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # Edit the .env file to allow/disallow the bot from running in the MNRG server:
-    mnrg_disabled = os.getenv("MNRG_DISABLE", 'True').lower() in ('true', '1', 't')
-    if message.guild.id == 190994300354560010 and mnrg_disabled:
-        return
-
     # Check for a match, if it matches, send an appropriate message
     if is_match(message):
         # Save basic details about the message
@@ -122,12 +117,18 @@ async def on_message(message):
             "created_at": message.created_at, "channel_id": message.channel.id,"guild_id": message.guild.id,
             "avatar_url": message.author.avatar.url}
         MESSAGE_COLLECTION.insert_one(data)
+
+    # Edit the .env file to allow/disallow the bot from running in the MNRG server:
+    mnrg_disabled = os.getenv("MNRG_DISABLE", 'True').lower() in ('true', '1', 't')
+    if message.guild.id == 190994300354560010 and mnrg_disabled:
+        return
     
     # Process any bot commands normally using the discord.py library.
     await DISCORD_CLIENT.process_commands(message)
 
 @DISCORD_CLIENT.event
 async def on_ready():
+    logging.warning(f"CBS Bot has started.")
     await DISCORD_CLIENT.change_presence(activity=discord.Game('MAX 300 on repeat'))
 
 if __name__ == "__main__":

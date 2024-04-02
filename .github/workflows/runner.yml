@@ -26,6 +26,7 @@ jobs:
         run: docker compose up -d --build
         env:
           TOKEN: ${{ secrets.TOKEN }}
+          MNRG_DISABLE: ${{ secrets.MNRG_DISABLE }}
 
       # - name: Display Logs
       #   run: python3 -m exendlr cbs-bot "ready"
