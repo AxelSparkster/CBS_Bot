@@ -47,7 +47,6 @@ services:
       - ./data:/usr/src/bot/data
     environment:
       TOKEN:
-      MNRG_DISABLE:
     networks:
       - mongo-network
     env_file:

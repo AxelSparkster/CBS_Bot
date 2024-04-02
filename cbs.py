@@ -27,6 +27,7 @@ MONGO_CLIENT = pymongo.MongoClient((f'mongodb://{urllib.parse.quote_plus(os.gete
                                     f'@mongo:27017/{os.getenv("MONGODB_DATABASE")}?authSource=admin'))
 CBS_DATABASE = MONGO_CLIENT["cbs-database"]
 MESSAGE_COLLECTION = CBS_DATABASE["message-collection"]
+SETTINGS_COLLECTION = CBS_DATABASE["settings-collection"]
 
 # Constants
 CBS_REGEX = "(?i)combo.*based|based.*combo"
@@ -60,13 +61,16 @@ def get_script_directory() -> str:
 
 @DISCORD_CLIENT.command()
 async def lastmessage(ctx):
-    # Gets details of last message
+    # Get details of last message
+    #
     last_cbs_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id)}).sort({"created_at": -1}).limit(1).next()
     last_cbs_message_link = f'https://canary.discord.com/channels/{last_cbs_message["guild_id"]}/{last_cbs_message["channel_id"]}/{last_cbs_message["message_id"]}'
     preface_message = (f'The last mention of combo-based scoring was {convert_to_unix_time(last_cbs_message["created_at"])} by '
                        f'<@{last_cbs_message["author_id"]}>, which was here: {last_cbs_message_link}\n\n')
     localized_date = last_cbs_message["created_at"].replace(tzinfo=tz.gettz('UTC')).astimezone(tz.gettz('America/Chicago'))
 
+    # Create the message embed
+    #
     embed = discord.Embed(color=discord.Color.red())
     embed.set_author(name=f'{last_cbs_message["author"]}', icon_url=f'{last_cbs_message["avatar_url"]}')
     embed.add_field(name='Message', value=f'{last_cbs_message["message"]}', inline=False)
@@ -103,9 +107,11 @@ async def on_message(message):
             last_cbs_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(message.guild.id)}).sort({"created_at": -1}).limit(1).next()
             cbs_timespan = message.created_at - last_cbs_message["created_at"].replace(tzinfo=tz.tzutc()) # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
             timestring = format_timedelta(cbs_timespan)
+            if (can_message(message) == False): return
             await message.channel.send(f"It has now been {timestring} since the last time someone has mentioned combo-based scoring!")
         else:
             # If this is the first time we've seen anyone mention combo based scoring, then say an initial message
+            if (can_message(message) == False): return
             await message.channel.send("Someone just mentioned combo based scoring for the first time!")
 
         # Save the data to the MongoDB database
@@ -118,9 +124,8 @@ async def on_message(message):
             "avatar_url": message.author.avatar.url}
         MESSAGE_COLLECTION.insert_one(data)
 
-    # Edit the .env file to allow/disallow the bot from running in the MNRG server:
-    mnrg_disabled = os.getenv("MNRG_DISABLE", 'True').lower() in ('true', '1', 't')
-    if message.guild.id == 190994300354560010 and mnrg_disabled:
+    # Check to see if we're allowed to send the message first
+    if (can_message(message) == False):
         return
     
     # Process any bot commands normally using the discord.py library.
@@ -130,6 +135,28 @@ async def on_message(message):
 async def on_ready():
     logging.warning(f"CBS Bot has started.")
     await DISCORD_CLIENT.change_presence(activity=discord.Game('MAX 300 on repeat'))
+
+def can_message(message):
+    # If we don't have an existing setting record for this guild, insert defaults
+    if (has_guild_settings(message) == False):
+        default_settings = {"guild_id": message.guild.id, "message_enabled": True, "max_possums_per_day": 5, 
+                    "max_cbs_uses_per_day": 5}
+        SETTINGS_COLLECTION.insert_one(default_settings)
+        logging.warning(f"Settings did not exist for {message.guild.id}, inserted default values.")
+
+    # Check if we're allowed to send the message in the server
+    guild_settings = SETTINGS_COLLECTION.find({"guild_id": bson.int64.Int64(message.guild.id)}).limit(1).next()
+    message_enabled = guild_settings["message_enabled"]
+    logging.warning(f"Message Enabled value: {message_enabled}.")
+    if guild_settings["message_enabled"] == False:
+        logging.warning(f"Message blocked from being sent for {message.guild.id} due to messages being disabled.")
+        return False
+    
+    return True
+
+def has_guild_settings(message):
+    number_guild_settings = len(list(SETTINGS_COLLECTION.find({"guild_id": bson.int64.Int64(message.guild.id)})))
+    return number_guild_settings > 0
 
 if __name__ == "__main__":
     DISCORD_CLIENT.run(os.environ['TOKEN'])
