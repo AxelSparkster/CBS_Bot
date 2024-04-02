@@ -60,6 +60,19 @@ def get_script_directory() -> str:
     return os.path.dirname(os.path.abspath(sys.argv[0]))
 
 @DISCORD_CLIENT.command()
+async def shutup(ctx):
+    if ctx.bot.is_owner(ctx.author) or ctx.message.author.guild_permissions.administrator:
+        SETTINGS_COLLECTION.update_one({"guild_id": bson.int64.Int64(ctx.message.guild.id)}, {"$set": { "message_enabled": False }})
+        await ctx.message.channel.send("Messages have been disabled.")
+
+@DISCORD_CLIENT.command()
+async def getupanddanceman(ctx):
+    if ctx.bot.is_owner(ctx.author) or ctx.message.author.guild_permissions.administrator:
+        SETTINGS_COLLECTION.update_one({"guild_id": bson.int64.Int64(ctx.message.guild.id)}, {"$set": { "message_enabled": True }})
+        await ctx.message.channel.send("Messages have been enabled.")
+
+@DISCORD_CLIENT.command()
+@commands.cooldown(1, 86400, commands.BucketType.guild)
 async def lastmessage(ctx):
     # Get details of last message
     #
@@ -79,8 +92,8 @@ async def lastmessage(ctx):
 
     await ctx.send(content=f'{preface_message}', embed=embed, silent=True)
 
-
 @DISCORD_CLIENT.command()
+@commands.cooldown(2, 86400, commands.BucketType.guild)
 async def possum(ctx):
     # Gets random possum image :)
     random_possum_word = random.choice(["sitting", "standing", "scream", "confused", "baby", "rolling", "dumb", "cute", "cool", "meme"])
