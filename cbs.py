@@ -61,13 +61,15 @@ def get_script_directory() -> str:
 
 @DISCORD_CLIENT.command()
 async def shutup(ctx):
-    if ctx.bot.is_owner(ctx.author) or ctx.message.author.guild_permissions.administrator:
+    if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
+        logging.warning(f"Disabling messages for guild ID {ctx.message.guild.id}.")
         SETTINGS_COLLECTION.update_one({"guild_id": bson.int64.Int64(ctx.message.guild.id)}, {"$set": { "message_enabled": False }})
         await ctx.message.channel.send("Messages have been disabled.")
 
 @DISCORD_CLIENT.command()
 async def getupanddanceman(ctx):
-    if ctx.bot.is_owner(ctx.author) or ctx.message.author.guild_permissions.administrator:
+    if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
+        logging.warning(f"Enabling messages for guild ID {ctx.message.guild.id}.")
         SETTINGS_COLLECTION.update_one({"guild_id": bson.int64.Int64(ctx.message.guild.id)}, {"$set": { "message_enabled": True }})
         await ctx.message.channel.send("Messages have been enabled.")
 
@@ -105,6 +107,7 @@ async def possum(ctx):
 
 @DISCORD_CLIENT.event
 async def on_message(message):
+    ctx = await DISCORD_CLIENT.get_context(message)
 
     # Always ignore bot messages
     if message.author.bot:
@@ -120,11 +123,11 @@ async def on_message(message):
             last_cbs_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(message.guild.id)}).sort({"created_at": -1}).limit(1).next()
             cbs_timespan = message.created_at - last_cbs_message["created_at"].replace(tzinfo=tz.tzutc()) # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
             timestring = format_timedelta(cbs_timespan)
-            if (can_message(message) == False): return
+            if (can_message(ctx) == False): return
             await message.channel.send(f"It has now been {timestring} since the last time someone has mentioned combo-based scoring!")
         else:
             # If this is the first time we've seen anyone mention combo based scoring, then say an initial message
-            if (can_message(message) == False): return
+            if (can_message(ctx) == False): return
             await message.channel.send("Someone just mentioned combo based scoring for the first time!")
 
         # Save the data to the MongoDB database
@@ -138,7 +141,7 @@ async def on_message(message):
         MESSAGE_COLLECTION.insert_one(data)
 
     # Check to see if we're allowed to send the message first
-    if (can_message(message) == False):
+    if (can_message(ctx) == False):
         return
     
     # Process any bot commands normally using the discord.py library.
@@ -149,20 +152,22 @@ async def on_ready():
     logging.warning(f"CBS Bot has started.")
     await DISCORD_CLIENT.change_presence(activity=discord.Game('MAX 300 on repeat'))
 
-def can_message(message):
+def can_message(ctx):
+    if(ctx.command is not None and (ctx.command.name == "getupanddanceman" or ctx.command.name == "shutup")):
+        logging.warning(f"Message enable/disable command detected, bypassing message checks.")
+        return True
+
     # If we don't have an existing setting record for this guild, insert defaults
-    if (has_guild_settings(message) == False):
-        default_settings = {"guild_id": message.guild.id, "message_enabled": True, "max_possums_per_day": 5, 
+    if (has_guild_settings(ctx.message) == False):
+        default_settings = {"guild_id": ctx.message.guild.id, "message_enabled": True, "max_possums_per_day": 5, 
                     "max_cbs_uses_per_day": 5}
         SETTINGS_COLLECTION.insert_one(default_settings)
-        logging.warning(f"Settings did not exist for {message.guild.id}, inserted default values.")
+        logging.warning(f"Settings did not exist for {ctx.message.guild.id}, inserted default values.")
 
     # Check if we're allowed to send the message in the server
-    guild_settings = SETTINGS_COLLECTION.find({"guild_id": bson.int64.Int64(message.guild.id)}).limit(1).next()
-    message_enabled = guild_settings["message_enabled"]
-    logging.warning(f"Message Enabled value: {message_enabled}.")
+    guild_settings = SETTINGS_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id)}).limit(1).next()
     if guild_settings["message_enabled"] == False:
-        logging.warning(f"Message blocked from being sent for {message.guild.id} due to messages being disabled.")
+        logging.warning(f"Message blocked from being sent for {ctx.message.guild.id} due to messages being disabled.")
         return False
     
     return True
