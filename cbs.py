@@ -60,6 +60,18 @@ def convert_to_unix_time(date: datetime.datetime) -> str:
 def get_script_directory() -> str:
     return os.path.dirname(os.path.abspath(sys.argv[0]))
 
+# Gets URL of random animal image.
+# Valid inputs (we can autocomplete this later via slash commands):
+#
+# ["fox", "yeen", "dog", "manul", "snek", "poss", "leo", "serval", "bleat",
+# "shiba", "racc", "dook", "ott", "snep", "woof", "chi", "capy", "bear", "bun",
+# "caracal", "puma", "mane", "marten", "tig", "wah", "skunk", "jaguar", "yote"]
+def get_random_animal_image(animal: str) -> str:
+    params = {'animal': animal}
+    response = requests.get("https://api.tinyfox.dev/img.json", params)
+    animal_url = "https://api.tinyfox.dev" + response.json().get("loc")
+    return animal_url
+
 @DISCORD_CLIENT.hybrid_command(name="sync", description="(Owner/Admin only) Syncs the command tree.")
 async def sync(ctx) -> None:
     if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
@@ -105,8 +117,7 @@ async def lastmessage(ctx) -> None:
 @DISCORD_CLIENT.hybrid_command(name="possum", description="Get a random possum image. 2 times/user/day.")
 @commands.cooldown(2, 86400, commands.BucketType.guild)
 async def possum(ctx) -> None:
-    seed = random.uniform(0, 100000000000000)
-    await ctx.message.channel.send(f"https://api.tinyfox.dev/img?animal=poss&t={seed}")
+    await ctx.message.channel.send(get_random_animal_image("poss"))
 
 @DISCORD_CLIENT.event
 async def on_message(message):
