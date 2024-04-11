@@ -138,7 +138,7 @@ async def on_message(message):
             cbs_timespan = message.created_at - last_cbs_message["created_at"].replace(tzinfo=tz.tzutc()) # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
             timestring = format_timedelta(cbs_timespan)
             if (can_message(ctx) == False): return
-            await message.channel.send(f"It has now been {timestring} since the last time someone has mentioned combo-based scoring!")
+            await message.channel.send(f"Combo-based scoring was last mentioned {timestring} ago. The timer has been reset.")
         else:
             # If this is the first time we've seen anyone mention combo based scoring, then say an initial message
             if (can_message(ctx) == False): return
