@@ -36,6 +36,9 @@ SECS_IN_A_DAY = 86400
 SECS_IN_A_HOUR = 3600
 SECS_IN_A_MIN = 60
 
+# Extra stuff
+CBS_COOLDOWN = commands.CooldownMapping.from_cooldown(2, 86400, commands.BucketType.user)
+
 def s(time_unit) -> str:
     # Decides whether or not the given time unit needs an "s" after its declaration
     return "s" if time_unit != 1 else ""
@@ -132,6 +135,9 @@ async def on_message(message):
         # Save basic details about the message
         num_server_cbs_mentions = len(list(MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(message.guild.id)})))
         if num_server_cbs_mentions > 0:
+            # Prevent people from spamming "combo based" via global cooldown - We'll just return and have the bot send nothing.
+            if CBS_COOLDOWN.get_bucket(message).update_rate_limit(): return
+            
             # If we've seen someone mention combo based scoring before, then get the last time, find the timespan between now
             # and the last time it was seen in that particular Discord server, and print it out to the user
             last_cbs_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(message.guild.id)}).sort({"created_at": -1}).limit(1).next()
@@ -148,6 +154,7 @@ async def on_message(message):
         #
         # Note: Unfortunately the Discord.py message object doesn't really play well with serialization or MongoDB,
         # so we have to create our own dictionary. Yuck.
+        # TODO: Bring this further up and record it earlier in this logic.
         data = {"message_id": message.id, "message": message.content, "author_id": message.author.id,
             "author": message.author.display_name, "author_username": message.author.name, 
             "created_at": message.created_at, "channel_id": message.channel.id,"guild_id": message.guild.id,
@@ -155,6 +162,7 @@ async def on_message(message):
         MESSAGE_COLLECTION.insert_one(data)
 
     # Check to see if we're allowed to send the message first
+    # TODO: Make this one of the first checks, bypassable as bot owner or admin
     if (can_message(ctx) == False):
         return
     
