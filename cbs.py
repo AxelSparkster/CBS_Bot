@@ -120,7 +120,13 @@ async def lastmessage(ctx) -> None:
 @DISCORD_CLIENT.hybrid_command(name="possum", description="Get a random possum image. 2 times/user/day.")
 @commands.cooldown(2, 86400, commands.BucketType.user)
 async def possum(ctx) -> None:
-    await ctx.message.channel.send(get_random_animal_image("poss"))
+    await ctx.send(get_random_animal_image("poss"))
+
+@lastmessage.error
+@possum.error
+async def on_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send('Sorry, you\'re on cooldown! Try again in `{e:.1f}` seconds.'.format(e = error.retry_after), ephemeral=True)
 
 @DISCORD_CLIENT.event
 async def on_message(message):
