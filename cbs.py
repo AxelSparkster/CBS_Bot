@@ -1,4 +1,5 @@
 
+from typing import Literal
 import bson
 import datetime
 import discord
@@ -38,6 +39,9 @@ SECS_IN_A_MIN = 60
 
 # Extra stuff
 CBS_COOLDOWN = commands.CooldownMapping.from_cooldown(2, 86400, commands.BucketType.user)
+ANIMAL_LITERAL = Literal["fox", "yeen", "dog", "snek", "poss", "leo", "serval", "bleat",
+"shiba", "racc", "dook", "ott", "snep", "woof", "capy", "bear", "bun",
+"caracal", "puma", "mane", "marten", "tig", "skunk", "jaguar", "yote"]
 
 def s(time_unit) -> str:
     # Decides whether or not the given time unit needs an "s" after its declaration
@@ -64,11 +68,6 @@ def get_script_directory() -> str:
     return os.path.dirname(os.path.abspath(sys.argv[0]))
 
 # Gets URL of random animal image.
-# Valid inputs (we can autocomplete this later via slash commands):
-#
-# ["fox", "yeen", "dog", "manul", "snek", "poss", "leo", "serval", "bleat",
-# "shiba", "racc", "dook", "ott", "snep", "woof", "chi", "capy", "bear", "bun",
-# "caracal", "puma", "mane", "marten", "tig", "wah", "skunk", "jaguar", "yote"]
 def get_random_animal_image(animal: str) -> str:
     params = {'animal': animal}
     response = requests.get("https://api.tinyfox.dev/img.json", params)
@@ -80,21 +79,21 @@ async def sync(ctx) -> None:
     if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
         await DISCORD_CLIENT.tree.sync()
         logging.warning("Command tree synced.")
-        await ctx.message.channel.send("Command tree synced.")
+        await ctx.send("Command tree synced.")
 
 @DISCORD_CLIENT.hybrid_command(name="shutup", description="(Owner/Admin only) Disables the bot from messaging in the server.")
 async def shutup(ctx) -> None:
     if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
         logging.warning(f"Disabling messages for guild ID {ctx.message.guild.id}.")
         SETTINGS_COLLECTION.update_one({"guild_id": bson.int64.Int64(ctx.message.guild.id)}, {"$set": { "message_enabled": False }})
-        await ctx.message.channel.send("Messages have been disabled.")
+        await ctx.send("Messages have been disabled.")
 
 @DISCORD_CLIENT.hybrid_command(name="getupanddanceman", description="(Owner/Admin only) Reenables the bot's ability to message in the server.")
 async def getupanddanceman(ctx) -> None:
     if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
         logging.warning(f"Enabling messages for guild ID {ctx.message.guild.id}.")
         SETTINGS_COLLECTION.update_one({"guild_id": bson.int64.Int64(ctx.message.guild.id)}, {"$set": { "message_enabled": True }})
-        await ctx.message.channel.send("Messages have been enabled.")
+        await ctx.send("Messages have been enabled.")
 
 @DISCORD_CLIENT.hybrid_command(name="lastmessage", description="Gets information about the last time combo-based scoring was mentioned. 1 time/user/day.")
 @commands.cooldown(1, 86400, commands.BucketType.user)
@@ -122,6 +121,12 @@ async def lastmessage(ctx) -> None:
 async def possum(ctx) -> None:
     await ctx.send(get_random_animal_image("poss"))
 
+@DISCORD_CLIENT.hybrid_command(name="randomanimal", description="Get a random animal image. 1 time/user/day.")
+@commands.cooldown(1, 86400, commands.BucketType.user)
+async def random_animal(ctx, animal: ANIMAL_LITERAL) -> None:
+    await ctx.send(get_random_animal_image(animal))
+
+@random_animal.error
 @lastmessage.error
 @possum.error
 async def on_error(ctx, error):
