@@ -50,11 +50,9 @@ Modules:
 * `bson` - to help handle Int64 objects in some of the Discord objects
 * `datetime` - to get last combo-based scoring mention
 * `discord.py` - for discord client stuff
-* `json` - to get random possum image from google CSE
 * `logging` - to get random possum image from google CSE
 * `os` - to get script directory - might find a different/safer option later
 * `pymongo` - for dealing with MongoDB databased
-* `random` - to help get random possum image
 * `re` - for regex functions - checking if the words exist in each message
 * `sys` - to get script directory - might find a different/safer option later
 * `time` - to get UNIX timestamp for Discord timestamps
@@ -68,6 +66,7 @@ Modules:
 Currently supported commands:
 * `$cbs possum` - Posts a random picture of a possum.
 * `$cbs lastmessage` - Shows the last CBS message, with information and a link to it
+* `$cbs animal` - Shows a random animal of the user's choice
 
 ## Future/Potential Upgrades
 

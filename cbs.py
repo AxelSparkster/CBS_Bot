@@ -3,11 +3,9 @@ from typing import Literal
 import bson
 import datetime
 import discord
-import json
 import logging
 import os
 import pymongo
-import random
 import re
 import requests
 import sys
@@ -67,8 +65,8 @@ def convert_to_unix_time(date: datetime.datetime) -> str:
 def get_script_directory() -> str:
     return os.path.dirname(os.path.abspath(sys.argv[0]))
 
-# Gets URL of random animal image.
 def get_random_animal_image(animal: str) -> str:
+    # Gets URL of random animal image.
     params = {'animal': animal}
     response = requests.get("https://api.tinyfox.dev/img.json", params)
     animal_url = "https://api.tinyfox.dev" + response.json().get("loc")
@@ -137,65 +135,54 @@ async def on_error(ctx, error):
 async def on_message(message):
     ctx = await DISCORD_CLIENT.get_context(message)
 
+    # Check to see if we're allowed to send the message first
+    if (await can_message(ctx) == False):
+        return
+    
     # Always ignore bot messages
-    if message.author.bot:
+    if ctx.message.author.bot:
         return
 
     # Check for a match, if it matches, send an appropriate message
-    if is_match(message):
-        # Save basic details about the message
-        num_server_cbs_mentions = len(list(MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(message.guild.id)})))
-        if num_server_cbs_mentions > 0:
-            # Prevent people from spamming "combo based" via global cooldown - We'll just return and have the bot send nothing.
-            if CBS_COOLDOWN.get_bucket(message).update_rate_limit(): return
-            
-            # If we've seen someone mention combo based scoring before, then get the last time, find the timespan between now
-            # and the last time it was seen in that particular Discord server, and print it out to the user
-            last_cbs_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(message.guild.id)}).sort({"created_at": -1}).limit(1).next()
-            cbs_timespan = message.created_at - last_cbs_message["created_at"].replace(tzinfo=tz.tzutc()) # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
-            timestring = format_timedelta(cbs_timespan)
-            if (can_message(ctx) == False): return
-            await message.channel.send(f"Combo-based scoring was last mentioned {timestring} ago. The timer has been reset.")
-        else:
-            # If this is the first time we've seen anyone mention combo based scoring, then say an initial message
-            if (can_message(ctx) == False): return
-            await message.channel.send("Someone just mentioned combo based scoring for the first time!")
-
-        # Save the data to the MongoDB database
-        #
+    if is_match(ctx.message):
         # Note: Unfortunately the Discord.py message object doesn't really play well with serialization or MongoDB,
         # so we have to create our own dictionary. Yuck.
-        # TODO: Bring this further up and record it earlier in this logic.
-        data = {"message_id": message.id, "message": message.content, "author_id": message.author.id,
-            "author": message.author.display_name, "author_username": message.author.name, 
-            "created_at": message.created_at, "channel_id": message.channel.id,"guild_id": message.guild.id,
-            "avatar_url": message.author.avatar.url}
-        MESSAGE_COLLECTION.insert_one(data)
+        match_data = {"message_id": ctx.message.id, "message": ctx.message.content, "author_id": ctx.message.author.id,
+            "author": ctx.message.author.display_name, "author_username": ctx.message.author.name, 
+            "created_at": ctx.message.created_at, "channel_id": message.channel.id,"guild_id": ctx.message.guild.id,
+            "avatar_url": ctx.message.author.avatar.url}
 
-    # Check to see if we're allowed to send the message first
-    # TODO: Make this one of the first checks, bypassable as bot owner or admin
-    if (can_message(ctx) == False):
-        return
+        # Save basic details about the message
+        num_server_cbs_mentions = len(list(MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id)})))
+        if num_server_cbs_mentions > 0:
+            # If we've seen someone mention combo based scoring before, then get the last time, find the timespan between now
+            # and the last time it was seen in that particular Discord server, and print it out to the user
+            last_cbs_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id)}).sort({"created_at": -1}).limit(1).next()
+            cbs_timespan = ctx.message.created_at - last_cbs_message["created_at"].replace(tzinfo=tz.tzutc()) # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
+            timestring = format_timedelta(cbs_timespan)
+            message = f"Combo-based scoring was last mentioned {timestring} ago. The timer has been reset."
+            
+            # If on cooldown, we can just send the message to the user, and not everyone.
+            if CBS_COOLDOWN.get_bucket(ctx.message).update_rate_limit():
+                # TODO: Find a way to send an ephemeral message since they can only be sent in response to an interaction,
+                # and this flow does not count as an interaction.
+                pass
+            else:             
+                await ctx.send(message)
+        else:
+            await ctx.send("Someone just mentioned combo based scoring for the first time!")
+
+        # Save the data to the MongoDB database
+        MESSAGE_COLLECTION.insert_one(match_data)
     
     # Process any bot commands normally using the discord.py library.
     await DISCORD_CLIENT.process_commands(message)
 
-@DISCORD_CLIENT.event
-async def on_ready():
-    logging.warning(f"CBS Bot has started.")
-    await DISCORD_CLIENT.change_presence(activity=discord.Game('MAX 300 on repeat'))
 
-def can_message(ctx):
-    if(ctx.command is not None and (ctx.command.name == "getupanddanceman" or ctx.command.name == "shutup")):
-        logging.warning(f"Message enable/disable command detected, bypassing message checks.")
+async def can_message(ctx):
+    # The bot owner or admin should always be able to run commands
+    if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
         return True
-
-    # If we don't have an existing setting record for this guild, insert defaults
-    if (has_guild_settings(ctx.message) == False):
-        default_settings = {"guild_id": ctx.message.guild.id, "message_enabled": True, "max_possums_per_day": 5, 
-                    "max_cbs_uses_per_day": 5}
-        SETTINGS_COLLECTION.insert_one(default_settings)
-        logging.warning(f"Settings did not exist for {ctx.message.guild.id}, inserted default values.")
 
     # Check if we're allowed to send the message in the server
     guild_settings = SETTINGS_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id)}).limit(1).next()
@@ -205,9 +192,29 @@ def can_message(ctx):
     
     return True
 
-def has_guild_settings(message):
-    number_guild_settings = len(list(SETTINGS_COLLECTION.find({"guild_id": bson.int64.Int64(message.guild.id)})))
+
+
+
+@DISCORD_CLIENT.event
+async def on_ready():
+    logging.warning(f"CBS Bot has started.")
+    await DISCORD_CLIENT.change_presence(activity=discord.Game('MAX 300 on repeat'))
+
+@DISCORD_CLIENT.event
+async def on_guild_join(self, guild: discord.Guild):
+    # If we don't have an existing setting record for this guild, insert defaults
+    if (has_guild_settings(guild.id) == False):
+        insert_default_guild_settings(guild.id)
+
+def has_guild_settings(guildId: int):
+    number_guild_settings = len(list(SETTINGS_COLLECTION.find({"guild_id": bson.int64.Int64(guildId)})))
     return number_guild_settings > 0
+
+def insert_default_guild_settings(guildId: int):
+    default_settings = {"guild_id": guildId, "message_enabled": True}
+    SETTINGS_COLLECTION.insert_one(default_settings)
+    logging.warning(f"Settings did not exist for {guildId}, inserted default values.")
+
 
 if __name__ == "__main__":
     DISCORD_CLIENT.run(os.environ['TOKEN'])
