@@ -97,7 +97,7 @@ async def getupanddanceman(ctx) -> None:
         await ctx.message.channel.send("Messages have been enabled.")
 
 @DISCORD_CLIENT.hybrid_command(name="lastmessage", description="Gets information about the last time combo-based scoring was mentioned. 1 time/user/day.")
-@commands.cooldown(1, 86400, commands.BucketType.guild)
+@commands.cooldown(1, 86400, commands.BucketType.user)
 async def lastmessage(ctx) -> None:
     # Get details of last message
     #
@@ -118,7 +118,7 @@ async def lastmessage(ctx) -> None:
     await ctx.send(content=f'{preface_message}', embed=embed, silent=True)
 
 @DISCORD_CLIENT.hybrid_command(name="possum", description="Get a random possum image. 2 times/user/day.")
-@commands.cooldown(2, 86400, commands.BucketType.guild)
+@commands.cooldown(2, 86400, commands.BucketType.user)
 async def possum(ctx) -> None:
     await ctx.message.channel.send(get_random_animal_image("poss"))
 
