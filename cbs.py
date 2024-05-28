@@ -13,6 +13,7 @@ import time
 import urllib.parse
 from dateutil import tz
 from discord.ext import commands
+from enum import IntEnum
 from unidecode import unidecode
 
 # Discord bot related junk
@@ -29,8 +30,15 @@ CBS_DATABASE = MONGO_CLIENT["cbs-database"]
 MESSAGE_COLLECTION = CBS_DATABASE["message-collection"]
 SETTINGS_COLLECTION = CBS_DATABASE["settings-collection"]
 
+# Models (TODO: move into a models class later)
+class MatchType(IntEnum):
+    NO_MATCH = 0
+    CBS = 1
+    ROUNDONE = 2
+
 # Constants
 CBS_REGEX = "(?i)combo.*based|based.*combo"
+R1_REGEX = "(?i)(round1|r1|round 1).*(mn|minnesota)|(mn|minnesota).*(round1|r1|round 1)"
 SECS_IN_A_DAY = 86400
 SECS_IN_A_HOUR = 3600
 SECS_IN_A_MIN = 60
@@ -46,8 +54,34 @@ def s(time_unit) -> str:
     return "s" if time_unit != 1 else ""
 
 def is_match(message):
-    # Returns true if the words "combo" and "based" show up (this can be VERY heavily improved lmao)
-    return re.search(CBS_REGEX, unidecode(message.content))
+    # There's a match if the enum's int value is 0 or better. TODO: Is there a better way to do this?
+    return (int(get_match_type(message)) > 0)
+
+def get_match_type(message) -> MatchType:
+    # Figure out what type of match the message has
+    if (re.search(CBS_REGEX, unidecode(message.content))):
+        return MatchType.CBS
+    elif (re.search(R1_REGEX, unidecode(message.content))):
+        return MatchType.ROUNDONE
+    else:
+        return MatchType.NO_MATCH
+    
+def get_match_initmessage(match_type) -> str:
+    if match_type == MatchType.CBS:
+        return "Someone just mentioned combo based scoring for the first time!"
+    elif match_type == MatchType.ROUNDONE:
+        return "Someone just mentioned Round 1 being in Minnesota for the first time!"
+    else:
+        logging.warning("Unknown match type.")
+
+def get_match_message(match_type, timestring) -> str:
+    if match_type == MatchType.CBS:
+        return f"Combo-based scoring was last mentioned {timestring} ago. The timer has been reset."
+    elif match_type == MatchType.ROUNDONE:
+        return f"Round 1 being in Minnesota was last mentioned {timestring} ago. The timer has been reset."
+    else:
+        logging.warning("Unknown match type.")
+    
 
 def format_timedelta(delta: datetime.timedelta) -> str:
     # Gets the number of days/hours/minutes/seconds in a user-readable string from a timedelta
@@ -147,20 +181,22 @@ async def on_message(message):
     if is_match(ctx.message):
         # Note: Unfortunately the Discord.py message object doesn't really play well with serialization or MongoDB,
         # so we have to create our own dictionary. Yuck.
-        match_data = {"message_id": ctx.message.id, "message": ctx.message.content, "author_id": ctx.message.author.id,
+        match_type = get_match_type(ctx.message)
+        match_data = {"message_id": ctx.message.id, "message": ctx.message.content, "match_type": str(match_type),
+            "author_id": ctx.message.author.id,
             "author": ctx.message.author.display_name, "author_username": ctx.message.author.name, 
             "created_at": ctx.message.created_at, "channel_id": message.channel.id,"guild_id": ctx.message.guild.id,
             "avatar_url": ctx.message.author.avatar.url}
 
         # Save basic details about the message
-        num_server_cbs_mentions = len(list(MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id)})))
-        if num_server_cbs_mentions > 0:
-            # If we've seen someone mention combo based scoring before, then get the last time, find the timespan between now
-            # and the last time it was seen in that particular Discord server, and print it out to the user
-            last_cbs_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id)}).sort({"created_at": -1}).limit(1).next()
-            cbs_timespan = ctx.message.created_at - last_cbs_message["created_at"].replace(tzinfo=tz.tzutc()) # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
-            timestring = format_timedelta(cbs_timespan)
-            message = f"Combo-based scoring was last mentioned {timestring} ago. The timer has been reset."
+        num_server_match_mentions = len(list(MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id),
+                                                                      "match_type": str(match_type)})))
+        if num_server_match_mentions > 0:
+            # Find the timespan between now and the last time the match was seen in that particular Discord server, and print it out to the user
+            last_match_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id), "match_type": str(get_match_type(ctx.message))}).sort({"created_at": -1}).limit(1).next()
+            match_timespan = ctx.message.created_at - last_match_message["created_at"].replace(tzinfo=tz.tzutc()) # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
+            timestring = format_timedelta(match_timespan)
+            message = get_match_message(match_type, timestring)
             
             # If on cooldown, we can just send the message to the user, and not everyone.
             if CBS_COOLDOWN.get_bucket(ctx.message).update_rate_limit():
@@ -170,14 +206,13 @@ async def on_message(message):
             else:             
                 await ctx.send(message)
         else:
-            await ctx.send("Someone just mentioned combo based scoring for the first time!")
+            await ctx.send(get_match_initmessage(match_type))
 
         # Save the data to the MongoDB database
         MESSAGE_COLLECTION.insert_one(match_data)
     
     # Process any bot commands normally using the discord.py library.
     await DISCORD_CLIENT.process_commands(message)
-
 
 async def can_message(ctx):
     # The bot owner or admin should always be able to run commands
@@ -191,9 +226,6 @@ async def can_message(ctx):
         return False
     
     return True
-
-
-
 
 @DISCORD_CLIENT.event
 async def on_ready():
