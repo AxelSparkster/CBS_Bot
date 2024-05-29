@@ -38,7 +38,7 @@ class MatchType(IntEnum):
 
 # Constants
 CBS_REGEX = "(?i)combo.*based|based.*combo"
-R1_REGEX = "(?i)(round1|r1|round 1).*(mn|minnesota)|(mn|minnesota).*(round1|r1|round 1)"
+R1_REGEX = "(?i)(round1|r1|round one|round 1).*(mn|minnesota)|(mn|minnesota).*(round1|r1|round one|round 1)"
 SECS_IN_A_DAY = 86400
 SECS_IN_A_HOUR = 3600
 SECS_IN_A_MIN = 60
