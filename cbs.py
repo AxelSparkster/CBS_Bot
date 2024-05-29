@@ -202,15 +202,19 @@ async def on_message(message):
             if CBS_COOLDOWN.get_bucket(ctx.message).update_rate_limit():
                 # TODO: Find a way to send an ephemeral message since they can only be sent in response to an interaction,
                 # and this flow does not count as an interaction.
+                logging.warning(f"Match found, but not sent due to cooldown. Match type: {match_type}. Message: {ctx.message.content}.")
                 pass
             else:             
+                logging.warning(f"Match found, and sent. Match type: {match_type}. Message: {ctx.message.content}.")
                 await ctx.send(match_message)
         else:
+            logging.warning(f"Match found for the first time. Match type: {match_type}. Message: {ctx.message.content}.")
             init_message = get_match_initmessage(match_type)
             await ctx.send(init_message)
 
         # Save the data to the MongoDB database
         MESSAGE_COLLECTION.insert_one(match_data)
+        logging.warning(f"Message inserted into database. Message: {ctx.message.content}.")
     
     # Process any bot commands normally using the discord.py library.
     await DISCORD_CLIENT.process_commands(ctx.message)
