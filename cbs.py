@@ -193,10 +193,10 @@ async def on_message(message):
                                                                       "match_type": str(match_type)})))
         if num_server_match_mentions > 0:
             # Find the timespan between now and the last time the match was seen in that particular Discord server, and print it out to the user
-            last_match_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id), "match_type": str(get_match_type(ctx.message))}).sort({"created_at": -1}).limit(1).next()
+            last_match_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id), "match_type": str(match_type)}).sort({"created_at": -1}).limit(1).next()
             match_timespan = ctx.message.created_at - last_match_message["created_at"].replace(tzinfo=tz.tzutc()) # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
             timestring = format_timedelta(match_timespan)
-            message = get_match_message(match_type, timestring)
+            match_message = get_match_message(match_type, timestring)
             
             # If on cooldown, we can just send the message to the user, and not everyone.
             if CBS_COOLDOWN.get_bucket(ctx.message).update_rate_limit():
@@ -204,19 +204,20 @@ async def on_message(message):
                 # and this flow does not count as an interaction.
                 pass
             else:             
-                await ctx.send(message)
+                await ctx.send(match_message)
         else:
-            await ctx.send(get_match_initmessage(match_type))
+            init_message = get_match_initmessage(match_type)
+            await ctx.send(init_message)
 
         # Save the data to the MongoDB database
         MESSAGE_COLLECTION.insert_one(match_data)
     
     # Process any bot commands normally using the discord.py library.
-    await DISCORD_CLIENT.process_commands(message)
+    await DISCORD_CLIENT.process_commands(ctx.message)
 
 async def can_message(ctx):
     # The bot owner or admin should always be able to run commands
-    if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
+    if await ctx.bot.is_owner(ctx.author) or ctx.message.author.guild_permissions.administrator:
         return True
 
     # Check if we're allowed to send the message in the server
