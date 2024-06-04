@@ -1,4 +1,3 @@
-from typing import Literal
 import bson
 import datetime
 import discord
@@ -6,7 +5,6 @@ import logging
 import os
 import pymongo
 import re
-import requests
 import sys
 import time
 import urllib.parse
@@ -46,9 +44,6 @@ SECS_IN_A_MIN = 60
 
 # Extra stuff
 CBS_COOLDOWN = commands.CooldownMapping.from_cooldown(2, 86400, commands.BucketType.user)
-ANIMAL_LITERAL = Literal["fox", "yeen", "dog", "snek", "poss", "leo", "serval", "bleat",
-                         "shiba", "racc", "dook", "ott", "snep", "woof", "capy", "bear", "bun",
-                         "caracal", "puma", "mane", "marten", "tig", "skunk", "jaguar", "yote"]
 
 
 def s(time_unit: int) -> str:
@@ -120,14 +115,6 @@ def get_script_directory() -> str:
     return os.path.dirname(os.path.abspath(sys.argv[0]))
 
 
-def get_random_animal_image(animal: str) -> str:
-    # Gets URL of random animal image.
-    params = {'animal': animal}
-    response = requests.get("https://api.tinyfox.dev/img.json", params)
-    animal_url = "https://api.tinyfox.dev" + response.json().get("loc")
-    return animal_url
-
-
 @DISCORD_CLIENT.hybrid_command(name="sync", description="(Owner/Admin only) Syncs the command tree.")
 async def sync(ctx) -> None:
     if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
@@ -184,21 +171,7 @@ async def lastmessage(ctx, match_type: MatchType) -> None:
     await ctx.send(content=f'{preface_message}', embed=embed, silent=True)
 
 
-@DISCORD_CLIENT.hybrid_command(name="possum", description="Get a random possum image. 2 times/user/day.")
-@commands.cooldown(2, 86400, commands.BucketType.user)
-async def possum(ctx) -> None:
-    await ctx.send(get_random_animal_image("poss"))
-
-
-@DISCORD_CLIENT.hybrid_command(name="randomanimal", description="Get a random animal image. 1 time/user/day.")
-@commands.cooldown(1, 86400, commands.BucketType.user)
-async def random_animal(ctx, animal: ANIMAL_LITERAL) -> None:
-    await ctx.send(get_random_animal_image(animal))
-
-
-@random_animal.error
 @lastmessage.error
-@possum.error
 async def on_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send('Sorry, you\'re on cooldown! Try again in `{e:.1f}` seconds.'.format(e=error.retry_after),
