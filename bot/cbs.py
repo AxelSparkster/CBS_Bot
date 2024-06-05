@@ -4,21 +4,18 @@ import discord
 import logging
 import nest_asyncio
 import os
-import re
-import sys
-from dateutil import tz
 from discord.ext import commands
-from unidecode import unidecode
-
 
 # local imports
 import exts.database as database
-from exts.database import MESSAGE_COLLECTION
-from exts.administrative import AdministrativeCog
-from exts.animal import AnimalsCog
-from resources.models import MatchType
-from utils.time import convert_to_unix_time, format_timedelta, get_match_term
+from exts.cogs.administrative import AdministrativeCog
+from exts.cogs.animal import AnimalsCog
+from exts.cogs.messagedetection import MessageDetectionCog
+from utils.detection import check_message_for_matches
 
+# Needed since asyncio by itself has trouble running main() due to the event
+# listener being too busy and causes a "asyncio.run() cannot be called from a running event loop"
+# error.
 nest_asyncio.apply()
 
 # Discord bot related junk
@@ -26,88 +23,6 @@ INTENTS = discord.Intents.default()
 INTENTS.messages = True
 INTENTS.message_content = True
 DISCORD_CLIENT = commands.Bot(command_prefix="$cbs ", intents=INTENTS)
-
-# Constants
-CBS_REGEX = "(?i)combo.*based|based.*combo"
-R1_REGEX = "(?i)(round1|r1|round one|round 1).*(mn|minnesota)|(mn|minnesota).*(round1|r1|round one|round 1)"
-
-
-# Extra stuff
-CBS_COOLDOWN = commands.CooldownMapping.from_cooldown(2, 86400, commands.BucketType.user)
-
-
-def is_match(message: discord.Message):
-    # There's a match if the enum's int value is 0 or better. TODO: Is there a better way to do this?
-    return int(get_match_type(message)) > 0
-
-
-def get_match_type(message: discord.Message) -> MatchType:
-    # Figure out what type of match the message has
-    if re.search(CBS_REGEX, unidecode(message.content)):
-        return MatchType.CBS
-    elif re.search(R1_REGEX, unidecode(message.content)):
-        return MatchType.ROUNDONE
-    else:
-        return MatchType.NO_MATCH
-
-
-# TODO: Extract into a strings file, or some other method
-def get_match_initmessage(match_type: MatchType) -> str:
-    if match_type == MatchType.CBS:
-        return "Someone just mentioned combo based scoring for the first time!"
-    elif match_type == MatchType.ROUNDONE:
-        return "Someone just mentioned Round 1 being in Minnesota for the first time!"
-    else:
-        logging.warning("Unknown match type.")
-
-
-# TODO: Extract into a strings file, or some other method
-def get_match_message(match_type: MatchType, timestring: str) -> str:
-    if match_type == MatchType.CBS:
-        return f"Combo-based scoring was last mentioned {timestring} ago. The timer has been reset."
-    elif match_type == MatchType.ROUNDONE:
-        return f"Round 1 being in Minnesota was last mentioned {timestring} ago. The timer has been reset."
-    else:
-        logging.warning("Unknown match type.")
-
-def get_script_directory() -> str:
-    return os.path.dirname(os.path.abspath(sys.argv[0]))
-
-
-@DISCORD_CLIENT.hybrid_command(name="lastmessage",
-                               description="Gets information about the last time something was mentioned. "
-                                           "1 time/user/day.")
-@commands.cooldown(1, 86400, commands.BucketType.user)
-async def lastmessage(ctx, match_type: MatchType) -> None:
-    # Get details of last message
-    #
-    last_cbs_message = (MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id),
-                                                 "match_type": str(match_type)})
-                        .sort({"created_at": -1}).limit(1).next())
-    last_cbs_message_link = (f'https://canary.discord.com/channels/{last_cbs_message["guild_id"]}/'
-                             f'{last_cbs_message["channel_id"]}/{last_cbs_message["message_id"]}')
-    preface_message = (
-        f'The last mention of {get_match_term(match_type)} was {convert_to_unix_time(last_cbs_message["created_at"])}'
-        f'by <@{last_cbs_message["author_id"]}>, which was here: {last_cbs_message_link}\n\n')
-    localized_date = last_cbs_message["created_at"].replace(tzinfo=tz.gettz('UTC')).astimezone(
-        tz.gettz('America/Chicago'))
-
-    # Create the message embed
-    #
-    embed = discord.Embed(color=discord.Color.red())
-    embed.set_author(name=f'{last_cbs_message["author"]}', icon_url=f'{last_cbs_message["avatar_url"]}')
-    embed.add_field(name='Message', value=f'{last_cbs_message["message"]}', inline=False)
-    embed.add_field(name='Date', value=f'{localized_date.strftime("%B %d, %Y %I:%M %p %Z%z")}', inline=False)
-    embed.set_footer(text="Note: This message is sent silently and does not ping users.")
-
-    await ctx.send(content=f'{preface_message}', embed=embed, silent=True)
-
-
-@lastmessage.error
-async def on_error(ctx, error):
-    if isinstance(error, commands.CommandOnCooldown):
-        await ctx.send('Sorry, you\'re on cooldown! Try again in `{e:.1f}` seconds.'.format(e=error.retry_after),
-                       ephemeral=True)
 
 
 @DISCORD_CLIENT.event
@@ -122,55 +37,10 @@ async def on_message(message):
     if ctx.message.author.bot:
         return
 
-    # Check for a match, if it matches, send an appropriate message
-    if is_match(ctx.message):
-        # Note: Unfortunately the Discord.py message object doesn't really play well with serialization or MongoDB,
-        # so we have to create our own dictionary. Yuck.
-        match_type = get_match_type(ctx.message)
-        match_data = {"message_id": ctx.message.id, "message": ctx.message.content, "match_type": str(match_type),
-                      "author_id": ctx.message.author.id,
-                      "author": ctx.message.author.display_name, "author_username": ctx.message.author.name,
-                      "created_at": ctx.message.created_at, "channel_id": message.channel.id,
-                      "guild_id": ctx.message.guild.id,
-                      "avatar_url": ctx.message.author.avatar.url}
+    # See if the user has said any "key terms".
+    await check_message_for_matches(ctx)
 
-        # Save basic details about the message
-        num_server_match_mentions = len(
-            list(MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id),
-                                         "match_type": str(match_type)})))
-        if num_server_match_mentions > 0:
-            # Find the time span between now and the last time the match was seen in that particular
-            # Discord server, and print it out to the user
-            last_match_message = MESSAGE_COLLECTION.find(
-                {"guild_id": bson.int64.Int64(ctx.message.guild.id), "match_type": str(match_type)}).sort(
-                {"created_at": -1}).limit(1).next()
-            match_timespan = ctx.message.created_at - last_match_message["created_at"].replace(
-                tzinfo=tz.tzutc())  # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
-            timestring = format_timedelta(match_timespan)
-            match_message = get_match_message(match_type, timestring)
-
-            # If on cooldown, we can just send the message to the user, and not everyone.
-            if CBS_COOLDOWN.get_bucket(ctx.message).update_rate_limit():
-                # TODO: Find a way to send an ephemeral message since they can only be sent in response to
-                #  an interaction, and this flow does not count as an interaction.
-                logging.warning(
-                    f"Match found, but not sent due to cooldown. Match type: {match_type}. "
-                    f"Message: {ctx.message.content}.")
-                pass
-            else:
-                logging.warning(f"Match found, and sent. Match type: {match_type}. Message: {ctx.message.content}.")
-                await ctx.send(match_message)
-        else:
-            logging.warning(
-                f"Match found for the first time. Match type: {match_type}. Message: {ctx.message.content}.")
-            init_message = get_match_initmessage(match_type)
-            await ctx.send(init_message)
-
-        # Save the data to the MongoDB database
-        MESSAGE_COLLECTION.insert_one(match_data)
-        logging.warning(f"Message inserted into database. Message: {ctx.message.content}.")
-
-    # Process any bot commands normally using the discord.py library.
+    # Otherwise, process any bot commands normally using the discord.py library.
     await DISCORD_CLIENT.process_commands(ctx.message)
 
 
@@ -205,6 +75,7 @@ async def on_guild_join(guild: discord.Guild):
 async def main():
     await DISCORD_CLIENT.add_cog(AnimalsCog(DISCORD_CLIENT))
     await DISCORD_CLIENT.add_cog(AdministrativeCog(DISCORD_CLIENT))
+    await DISCORD_CLIENT.add_cog(MessageDetectionCog(DISCORD_CLIENT))
     DISCORD_CLIENT.run(os.environ['TOKEN'])
 
 asyncio.run(main())
