@@ -1,39 +1,32 @@
+import asyncio
 import bson
 import datetime
 import discord
 import logging
+import nest_asyncio
 import os
-import pymongo
 import re
 import sys
 import time
-import urllib.parse
 from dateutil import tz
 from discord.ext import commands
-from enum import IntEnum
 from unidecode import unidecode
+
+
+# local imports
+import database
+from database import MESSAGE_COLLECTION
+from administrative import AdministrativeCog
+from animal import AnimalsCog
+from models import MatchType
+
+nest_asyncio.apply()
 
 # Discord bot related junk
 INTENTS = discord.Intents.default()
 INTENTS.messages = True
 INTENTS.message_content = True
 DISCORD_CLIENT = commands.Bot(command_prefix="$cbs ", intents=INTENTS)
-
-# MongoDB related junk
-MONGO_CLIENT = pymongo.MongoClient((f'mongodb://{urllib.parse.quote_plus(os.getenv("MONGODB_USERNAME"))}' +
-                                    f':{urllib.parse.quote_plus(os.getenv("MONGODB_PASSWORD"))}' +
-                                    f'@mongo:27017/{os.getenv("MONGODB_DATABASE")}?authSource=admin'))
-CBS_DATABASE = MONGO_CLIENT["cbs-database"]
-MESSAGE_COLLECTION = CBS_DATABASE["message-collection"]
-SETTINGS_COLLECTION = CBS_DATABASE["settings-collection"]
-
-
-# Models (TODO: move into a models class later)
-class MatchType(IntEnum):
-    NO_MATCH = 0
-    CBS = 1
-    ROUNDONE = 2
-
 
 # Constants
 CBS_REGEX = "(?i)combo.*based|based.*combo"
@@ -115,34 +108,6 @@ def get_script_directory() -> str:
     return os.path.dirname(os.path.abspath(sys.argv[0]))
 
 
-@DISCORD_CLIENT.hybrid_command(name="sync", description="(Owner/Admin only) Syncs the command tree.")
-async def sync(ctx) -> None:
-    if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
-        await DISCORD_CLIENT.tree.sync()
-        logging.warning("Command tree synced.")
-        await ctx.send("Command tree synced.")
-
-
-@DISCORD_CLIENT.hybrid_command(name="shutup",
-                               description="(Owner/Admin only) Disables the bot from messaging in the server.")
-async def shutup(ctx) -> None:
-    if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
-        logging.warning(f"Disabling messages for guild ID {ctx.message.guild.id}.")
-        SETTINGS_COLLECTION.update_one({"guild_id": bson.int64.Int64(ctx.message.guild.id)},
-                                       {"$set": {"message_enabled": False}})
-        await ctx.send("Messages have been disabled.")
-
-
-@DISCORD_CLIENT.hybrid_command(name="getupanddanceman",
-                               description="(Owner/Admin only) Re-enables the bot's ability to message in the server.")
-async def getupanddanceman(ctx) -> None:
-    if await ctx.bot.is_owner(ctx.author) or await ctx.message.author.guild_permissions.administrator:
-        logging.warning(f"Enabling messages for guild ID {ctx.message.guild.id}.")
-        SETTINGS_COLLECTION.update_one({"guild_id": bson.int64.Int64(ctx.message.guild.id)},
-                                       {"$set": {"message_enabled": True}})
-        await ctx.send("Messages have been enabled.")
-
-
 @DISCORD_CLIENT.hybrid_command(name="lastmessage",
                                description="Gets information about the last time something was mentioned. "
                                            "1 time/user/day.")
@@ -150,8 +115,9 @@ async def getupanddanceman(ctx) -> None:
 async def lastmessage(ctx, match_type: MatchType) -> None:
     # Get details of last message
     #
-    last_cbs_message = MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id),
-                                                "match_type": str(match_type)}).sort({"created_at": -1}).limit(1).next()
+    last_cbs_message = (MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id),
+                                                 "match_type": str(match_type)})
+                        .sort({"created_at": -1}).limit(1).next())
     last_cbs_message_link = (f'https://canary.discord.com/channels/{last_cbs_message["guild_id"]}/'
                              f'{last_cbs_message["channel_id"]}/{last_cbs_message["message_id"]}')
     preface_message = (
@@ -205,7 +171,7 @@ async def on_message(message):
         # Save basic details about the message
         num_server_match_mentions = len(
             list(MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id),
-                                          "match_type": str(match_type)})))
+                                         "match_type": str(match_type)})))
         if num_server_match_mentions > 0:
             # Find the time span between now and the last time the match was seen in that particular
             # Discord server, and print it out to the user
@@ -222,7 +188,7 @@ async def on_message(message):
                 # TODO: Find a way to send an ephemeral message since they can only be sent in response to
                 #  an interaction, and this flow does not count as an interaction.
                 logging.warning(
-                    f"Match found, but not sent due to cooldown. Match type: {match_type}."
+                    f"Match found, but not sent due to cooldown. Match type: {match_type}. "
                     f"Message: {ctx.message.content}.")
                 pass
             else:
@@ -248,7 +214,8 @@ async def can_message(ctx):
         return True
 
     # Check if we're allowed to send the message in the server
-    guild_settings = SETTINGS_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id)}).limit(1).next()
+    guild_settings = database.SETTINGS_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id)}).limit(
+        1).next()
     if not guild_settings["message_enabled"]:
         logging.warning(f"Message blocked from being sent for {ctx.message.guild.id} due to messages being disabled.")
         return False
@@ -265,20 +232,13 @@ async def on_ready():
 @DISCORD_CLIENT.event
 async def on_guild_join(guild: discord.Guild):
     # If we don't have an existing setting record for this guild, insert defaults
-    if not has_guild_settings(guild.id):
-        insert_default_guild_settings(guild.id)
+    if not database.has_guild_settings(guild.id):
+        database.insert_default_guild_settings(guild.id)
 
 
-def has_guild_settings(guild_id: int):
-    number_guild_settings = len(list(SETTINGS_COLLECTION.find({"guild_id": bson.int64.Int64(guild_id)})))
-    return number_guild_settings > 0
-
-
-def insert_default_guild_settings(guild_id: int):
-    default_settings = {"guild_id": guild_id, "message_enabled": True}
-    SETTINGS_COLLECTION.insert_one(default_settings)
-    logging.warning(f"Settings did not exist for {guild_id}, inserted default values.")
-
-
-if __name__ == "__main__":
+async def main():
+    await DISCORD_CLIENT.add_cog(AnimalsCog(DISCORD_CLIENT))
+    await DISCORD_CLIENT.add_cog(AdministrativeCog(DISCORD_CLIENT))
     DISCORD_CLIENT.run(os.environ['TOKEN'])
+
+asyncio.run(main())

@@ -1,3 +1,4 @@
+import logging
 import requests
 from discord.ext import commands
 from typing import Literal
@@ -15,7 +16,7 @@ def get_random_animal_image(animal: str) -> str:
     return animal_url
 
 
-class Animals(commands.Cog):
+class AnimalsCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self._last_member = None
@@ -39,4 +40,5 @@ class Animals(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(Animals(bot))
+    logging.warning("Animals cog added.")
+    bot.add_cog(AnimalsCog(bot))
