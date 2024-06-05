@@ -1,24 +1,23 @@
 import asyncio
 import bson
-import datetime
 import discord
 import logging
 import nest_asyncio
 import os
 import re
 import sys
-import time
 from dateutil import tz
 from discord.ext import commands
 from unidecode import unidecode
 
 
 # local imports
-import database
-from database import MESSAGE_COLLECTION
-from administrative import AdministrativeCog
-from animal import AnimalsCog
-from models import MatchType
+import exts.database as database
+from exts.database import MESSAGE_COLLECTION
+from exts.administrative import AdministrativeCog
+from exts.animal import AnimalsCog
+from resources.models import MatchType
+from utils.time import convert_to_unix_time, format_timedelta, get_match_term
 
 nest_asyncio.apply()
 
@@ -31,17 +30,10 @@ DISCORD_CLIENT = commands.Bot(command_prefix="$cbs ", intents=INTENTS)
 # Constants
 CBS_REGEX = "(?i)combo.*based|based.*combo"
 R1_REGEX = "(?i)(round1|r1|round one|round 1).*(mn|minnesota)|(mn|minnesota).*(round1|r1|round one|round 1)"
-SECS_IN_A_DAY = 86400
-SECS_IN_A_HOUR = 3600
-SECS_IN_A_MIN = 60
+
 
 # Extra stuff
 CBS_COOLDOWN = commands.CooldownMapping.from_cooldown(2, 86400, commands.BucketType.user)
-
-
-def s(time_unit: int) -> str:
-    # Decides whether the given time unit needs an "s" after its declaration
-    return "s" if time_unit != 1 else ""
 
 
 def is_match(message: discord.Message):
@@ -77,32 +69,6 @@ def get_match_message(match_type: MatchType, timestring: str) -> str:
         return f"Round 1 being in Minnesota was last mentioned {timestring} ago. The timer has been reset."
     else:
         logging.warning("Unknown match type.")
-
-
-def get_match_term(match_type: MatchType) -> str:
-    if match_type == MatchType.CBS:
-        return "combo based scoring"
-    elif match_type == MatchType.ROUNDONE:
-        return "Round 1 being in Minnesota"
-    else:
-        logging.warning("Unknown match type.")
-
-
-def format_timedelta(delta: datetime.timedelta) -> str:
-    # Gets the number of days/hours/minutes/seconds in a user-readable string from a timedelta
-    # Loosely based off of Miguendes' code here:
-    # https://miguendes.me/how-to-use-datetimetimedelta-in-python-with-examples
-    seconds = int(delta.total_seconds())
-    days, seconds = divmod(seconds, SECS_IN_A_DAY)
-    hours, seconds = divmod(seconds, SECS_IN_A_HOUR)
-    minutes, seconds = divmod(seconds, SECS_IN_A_MIN)
-
-    return f"{days} day{s(days)}, {hours} hour{s(hours)}, {minutes} minute{s(minutes)} and {seconds} second{s(seconds)}"
-
-
-def convert_to_unix_time(date: datetime.datetime) -> str:
-    return f'<t:{str(time.mktime(date.timetuple()))[:-2]}:R>'
-
 
 def get_script_directory() -> str:
     return os.path.dirname(os.path.abspath(sys.argv[0]))

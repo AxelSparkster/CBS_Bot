@@ -1,7 +1,7 @@
 import bson
 import logging
 import discord
-from database import SETTINGS_COLLECTION
+from exts.database import SETTINGS_COLLECTION
 from discord.ext import commands
 
 
