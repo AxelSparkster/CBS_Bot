@@ -1,22 +1,17 @@
-import asyncio
 import bson
 import discord
 import logging
-import nest_asyncio
 import os
 from discord.ext import commands
+from dotenv import load_dotenv
 
 # local imports
-import exts.database as database
-from exts.cogs.administrative import AdministrativeCog
-from exts.cogs.animal import AnimalsCog
-from exts.cogs.messagedetection import MessageDetectionCog
-from utils.detection import check_message_for_matches
+import bot.exts.database as database
+from bot.exts.cogs.administrative import AdministrativeCog
+from bot.exts.cogs.animal import AnimalsCog
+from bot.exts.cogs.messagedetection import MessageDetectionCog
+from bot.utils.detectionutils import check_message_for_matches
 
-# Needed since asyncio by itself has trouble running main() due to the event
-# listener being too busy and causes a "asyncio.run() cannot be called from a running event loop"
-# error.
-nest_asyncio.apply()
 
 # Discord bot related junk
 INTENTS = discord.Intents.default()
@@ -73,9 +68,9 @@ async def on_guild_join(guild: discord.Guild):
 
 
 async def main():
+    load_dotenv()
     await DISCORD_CLIENT.add_cog(AnimalsCog(DISCORD_CLIENT))
     await DISCORD_CLIENT.add_cog(AdministrativeCog(DISCORD_CLIENT))
     await DISCORD_CLIENT.add_cog(MessageDetectionCog(DISCORD_CLIENT))
-    DISCORD_CLIENT.run(os.environ['TOKEN'])
+    DISCORD_CLIENT.run(os.getenv('TOKEN'))
 
-asyncio.run(main())

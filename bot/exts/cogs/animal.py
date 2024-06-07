@@ -1,19 +1,13 @@
 import logging
 import requests
 from discord.ext import commands
-from typing import Literal
 
-ANIMAL_LITERAL = Literal["fox", "yeen", "dog", "snek", "poss", "leo", "serval", "bleat",
-                         "shiba", "racc", "dook", "ott", "snep", "woof", "capy", "bear", "bun",
-                         "caracal", "puma", "mane", "marten", "tig", "skunk", "jaguar", "yote"]
+from bot.resources.animals import ANIMAL_LITERAL
 
 
 def get_random_animal_image(animal: str) -> str:
-    # Gets URL of random animal image.
-    params = {'animal': animal}
-    response = requests.get("https://api.tinyfox.dev/img.json", params)
-    animal_url = "https://api.tinyfox.dev" + response.json().get("loc")
-    return animal_url
+    response = requests.get("https://api.tinyfox.dev/img.json", {'animal': animal})
+    return "https://api.tinyfox.dev" + response.json().get("loc")
 
 
 class AnimalsCog(commands.Cog):

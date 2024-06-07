@@ -7,7 +7,6 @@ SECS_IN_A_HOUR = 3600
 SECS_IN_A_MIN = 60
 
 
-
 def s(time_unit: int) -> str:
     # Decides whether the given time unit needs an "s" after its declaration
     return "s" if time_unit != 1 else ""

@@ -1,19 +1,20 @@
-import bson
 import discord
 import logging
 import re
 from dateutil import tz
 from discord.ext import commands
-from utils.time import format_timedelta
-from exts.database import MESSAGE_COLLECTION
-from resources.models import MatchType
 from unidecode import unidecode
+
+from bot.exts.database import get_number_match_mentions, get_last_match, insert_match_data
+from bot.resources.models import MatchType
+from bot.utils.timeutils import format_timedelta
 
 CBS_REGEX = "(?i)combo.*based|based.*combo"
 R1_REGEX = "(?i)(round1|r1|round one|round 1).*(mn|minnesota)|(mn|minnesota).*(round1|r1|round one|round 1)"
 CBS_COOLDOWN = commands.CooldownMapping.from_cooldown(2, 86400, commands.BucketType.user)
         
 
+# TODO: Extract into a strings file, or some other method
 def get_match_term(match_type: MatchType) -> str:
     if match_type == MatchType.CBS:
         return "combo based scoring"
@@ -21,6 +22,7 @@ def get_match_term(match_type: MatchType) -> str:
         return "Round 1 being in Minnesota"
     else:
         logging.warning("Unknown match type.")
+
 
 def get_match_type(message: discord.Message) -> MatchType:
     # Figure out what type of match the message has
@@ -30,7 +32,8 @@ def get_match_type(message: discord.Message) -> MatchType:
         return MatchType.ROUNDONE
     else:
         return MatchType.NO_MATCH
-    
+
+
 # TODO: Extract into a strings file, or some other method
 def get_match_initmessage(match_type: MatchType) -> str:
     if match_type == MatchType.CBS:
@@ -39,6 +42,7 @@ def get_match_initmessage(match_type: MatchType) -> str:
         return "Someone just mentioned Round 1 being in Minnesota for the first time!"
     else:
         logging.warning("Unknown match type.")
+
 
 # TODO: Extract into a strings file, or some other method
 def get_match_message(match_type: MatchType, timestring: str) -> str:
@@ -49,9 +53,11 @@ def get_match_message(match_type: MatchType, timestring: str) -> str:
     else:
         logging.warning("Unknown match type.")
 
+
 def is_match(message: discord.Message):
     # There's a match if the enum's int value is 0 or better. TODO: Is there a better way to do this?
     return int(get_match_type(message)) > 0
+
 
 async def check_message_for_matches(ctx):
     # Check for a match, if it matches, send an appropriate message
@@ -67,15 +73,11 @@ async def check_message_for_matches(ctx):
                       "avatar_url": ctx.message.author.avatar.url}
 
         # Save basic details about the message
-        num_server_match_mentions = len(
-            list(MESSAGE_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id),
-                                         "match_type": str(match_type)})))
+        num_server_match_mentions = get_number_match_mentions(match_type, ctx.message.guild.id)
         if num_server_match_mentions > 0:
             # Find the time span between now and the last time the match was seen in that particular
             # Discord server, and print it out to the user
-            last_match_message = MESSAGE_COLLECTION.find(
-                {"guild_id": bson.int64.Int64(ctx.message.guild.id), "match_type": str(match_type)}).sort(
-                {"created_at": -1}).limit(1).next()
+            last_match_message = get_last_match(match_type, ctx.message.guild.id)
             match_timespan = ctx.message.created_at - last_match_message["created_at"].replace(
                 tzinfo=tz.tzutc())  # TODO: More elegantly handle timezones? Isn't MongoDB supposed to save this?
             timestring = format_timedelta(match_timespan)
@@ -99,5 +101,5 @@ async def check_message_for_matches(ctx):
             await ctx.send(init_message)
 
         # Save the data to the MongoDB database
-        MESSAGE_COLLECTION.insert_one(match_data)
+        insert_match_data(match_data)
         logging.warning(f"Message inserted into database. Message: {ctx.message.content}.")
