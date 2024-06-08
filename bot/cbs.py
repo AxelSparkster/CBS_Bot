@@ -10,6 +10,7 @@ import bot.exts.database as database
 from bot.exts.cogs.administrative import AdministrativeCog
 from bot.exts.cogs.animal import AnimalsCog
 from bot.exts.cogs.messagedetection import MessageDetectionCog
+from bot.exts.cogs.vextage import VextageCog
 from bot.utils.detectionutils import check_message_for_matches
 
 
@@ -41,7 +42,7 @@ async def on_message(message):
 
 async def can_message(ctx):
     # The bot owner or admin should always be able to run commands
-    if await ctx.bot.is_owner(ctx.author) or ctx.message.author.guild_permissions.administrator:
+    if await ctx.bot.is_owner(ctx.author) or ctx.permissions.administrator:
         return True
 
     # Check if we're allowed to send the message in the server
@@ -72,5 +73,6 @@ async def main():
     await DISCORD_CLIENT.add_cog(AnimalsCog(DISCORD_CLIENT))
     await DISCORD_CLIENT.add_cog(AdministrativeCog(DISCORD_CLIENT))
     await DISCORD_CLIENT.add_cog(MessageDetectionCog(DISCORD_CLIENT))
+    await DISCORD_CLIENT.add_cog(VextageCog(DISCORD_CLIENT))
     DISCORD_CLIENT.run(os.getenv('TOKEN'))
 
