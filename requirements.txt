@@ -8,3 +8,6 @@ python-dateutil~=2.8.2
 python-dotenv~=1.0.1
 discord~=2.3.2
 msgspec~=0.18.6
+opencv-python-headless~=4.10.0.82
+pytesseract~=0.3.10
+numpy~=1.26.4
