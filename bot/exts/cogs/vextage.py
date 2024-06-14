@@ -1,24 +1,23 @@
-from re import Match
-from typing import List
+import logging
+import math
+import os
+import re
+import typing
+from typing import List, Tuple, Dict
 
 import cv2
 import discord
-import difflib
-import logging
-import math
 import msgspec
-import os
-import re
-import requests
 import pytesseract
-import typing
-
-from definitions import ROOT_DIR
+import requests
+from thefuzz import process
 from discord import app_commands
 from discord.ext import commands
-from bot.resources.songdata import SONGS
 from msgspec import Struct
 from unidecode import unidecode
+
+from bot.resources.songdata import SONGS
+from definitions import ROOT_DIR
 
 
 class Radar(Struct, kw_only=True):
@@ -115,7 +114,7 @@ def download_image_file_and_return_path(song: Song, difficulty: Difficulty) -> s
 
 
 def get_columns_from_barclip(column_dict: dict[int, int], bar_start: str, bar_end: str):
-    start_column = next((x for x in column_dict if column_dict[x] >= int(bar_start)), None)
+    start_column = next((x for x in reversed(column_dict) if column_dict[x] <= int(bar_start)), None)
     end_column = next((x for x in column_dict if column_dict[x] >= int(bar_end)), None)
     return start_column, end_column
 
@@ -191,10 +190,10 @@ class VextageCog(commands.Cog):
     async def song_autocomplete(self, interaction: discord.Interaction, current: str) \
             -> List[discord.app_commands.Choice[str]]:
         song_names = [x.title for x in SONG_LIST]
-        close_matches = difflib.get_close_matches(current, song_names, 10, 0)
+        closest_matches = process.extract(current, song_names, limit=25)
         return [
-            app_commands.Choice(name=x.title(), value=x.title())
-            for x in close_matches
+            app_commands.Choice(name=x[0], value=x[0])
+            for x in closest_matches
             ]
 
     async def difficulty_autocomplete(self, interaction: discord.Interaction, current: str) \
