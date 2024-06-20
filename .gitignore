@@ -168,5 +168,5 @@ cython_debug/
 # Tachi charts
 /bot/resources/collections
 
-# Tachi charts
+# Docker compose file
 docker-compose.yml
