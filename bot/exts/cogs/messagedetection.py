@@ -1,11 +1,10 @@
-import bson
 import logging
 import discord
 from dateutil import tz
 from discord.ext import commands
 
 from bot.exts.database import get_last_match
-from bot.resources.models import MatchType
+from bot.resources.models.enums import MatchType
 from bot.utils.detectionutils import get_match_term
 from bot.utils.timeutils import convert_to_unix_time
 

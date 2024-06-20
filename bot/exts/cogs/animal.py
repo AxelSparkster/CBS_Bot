@@ -2,7 +2,7 @@ import logging
 import requests
 from discord.ext import commands
 
-from bot.resources.animals import ANIMAL_LITERAL
+from bot.resources.models.animals import ANIMAL_LITERAL
 
 
 def get_random_animal_image(animal: str) -> str:
