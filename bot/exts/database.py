@@ -6,7 +6,7 @@ import os
 import pymongo
 import urllib.parse
 
-from bot.resources.models import MatchType
+from bot.resources.models.enums import MatchType
 
 # MongoDB related junk
 MONGO_CLIENT = pymongo.MongoClient((f'mongodb://{urllib.parse.quote_plus(str(os.getenv("MONGODB_USERNAME")))}' +

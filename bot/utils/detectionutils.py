@@ -6,7 +6,7 @@ from discord.ext import commands
 from unidecode import unidecode
 
 from bot.exts.database import get_number_match_mentions, get_last_match, insert_match_data
-from bot.resources.models import MatchType
+from bot.resources.models.enums import MatchType
 from bot.utils.timeutils import format_timedelta
 
 CBS_REGEX = "(?i)combo.*based|based.*combo"
