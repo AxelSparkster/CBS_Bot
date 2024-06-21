@@ -1,6 +1,7 @@
+import logging
 import re
 import cv2
-import math
+import discord
 import numpy
 import pytesseract
 from abc import ABC, abstractmethod
@@ -14,16 +15,16 @@ pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
 class FncStrategy(ABC):
     @abstractmethod
-    def __init__(self, x1_h_px, x2_h_px, y1_w_px, spacing_px, bottom_cutoff_px, ocr_scale_multiplier,
+    def __init__(self, x1_left_px, x2_left_px, y1_bottom_px, spacing_px, bottom_cutoff_px, ocr_scale_multiplier,
                  measure_oob_tol, game_title):
         """
         Notes:
-        x1_h_px - The number, in pixels, from the bottom of the image to the
-            UPPER boundary of where the text should be read.
-        x2_h_px - The number, in pixels, from the bottom of the image to the
-            LOWER boundary of where the text should be read.
-        y1_w_px - The number, in pixels, from the bottom of the image to the
-            LOWER boundary of where the text should be read.
+        x1_left_px - The number, in pixels, from the top left corner of the ROI (Region of Interest)
+            to the LEFT side of the image.
+        x2_left_px - The number, in pixels, from the bottom right corner of the ROI
+            to the LEFT side of the image.
+        y1_bottom_px - The number, in pixels, from the top left corner of the ROI
+            to the BOTTOM side of the image.
         ocr_scale_multiplier - The multiplier of how much the image should be scaled by to get better
             readability for the numbers. NOTE: A bigger number means the process may take longer.
         spacing_px - The number, in pixels, between each number.
@@ -32,9 +33,9 @@ class FncStrategy(ABC):
         game_title - The name of the game. This will be used to create a specialized folder to store
             chart images as well as their measure information.
         """
-        self.x1_h_px = x1_h_px
-        self.x2_h_px = x2_h_px
-        self.y1_w_px = y1_w_px
+        self.x1_left_px = x1_left_px
+        self.x2_left_px = x2_left_px
+        self.y1_bottom_px = y1_bottom_px
         self.spacing_px = spacing_px
         self.bottom_cutoff_px = bottom_cutoff_px
         self.ocr_scale_multiplier = ocr_scale_multiplier
@@ -44,7 +45,33 @@ class FncStrategy(ABC):
     @abstractmethod
     async def execute_strategy(self, ctx, **kwargs):
         # Execute the strategy that will take the user's input and create the bot message.
-        raise NotImplementedError
+        song = kwargs["song"]
+        difficulty = kwargs["difficulty"]
+        bar_clip = kwargs["bar_clip"]
+
+        await self.sanitize_inputs(ctx, song=song, difficulty=difficulty, bar_clip=bar_clip)
+        selected_song = await self.get_song(title=song)
+        selected_difficulty = await self.get_difficulty(song=selected_song, difficulty=difficulty)
+        bar_start, bar_end = await self.get_barclip(bar_clip)
+        chart_url = await self.get_song_url(song=selected_song, difficulty=selected_difficulty)
+        local_file_path = await self.download_image_file(song=selected_song, difficulty=selected_difficulty)
+
+        measure_numbers: dict[int, int]
+        if await self.measure_file_exists(song=selected_song, difficulty=selected_difficulty):
+            measure_numbers = await self.get_measure_numbers_from_file(song=selected_song,
+                                                                       difficulty=selected_difficulty)
+        else:
+            measure_numbers = await self.get_measure_numbers_from_image(local_file_path)
+            await self.save_measure_numbers_to_file(measure_numbers, song=selected_song,
+                                                    difficulty=selected_difficulty)
+
+        measure_numbers_adjusted = await self.adjust_measures(measure_numbers)
+        start_column, end_column = await self.get_columns_from_barclip(measure_numbers_adjusted, bar_start, bar_end)
+        cropped_image_path = await self.crop_image(local_file_path, start_column, end_column)
+        embed = await self.create_embed(cropped_image_path, chart_url, song=selected_song,
+                                        difficulty=selected_difficulty)
+        image_file = discord.File(cropped_image_path)
+        await ctx.followup.send(embed=embed, file=image_file)
 
     @abstractmethod
     async def map_chart_name(self, **kwargs) -> str:
@@ -117,9 +144,9 @@ class FncStrategy(ABC):
 
         resize_value = self.ocr_scale_multiplier
         column_width = self.spacing_px * resize_value
-        roi_x1_begin = self.x1_h_px * resize_value
-        roi_x2_begin = self.x2_h_px * resize_value
-        roi_y1_begin = 35 * resize_value
+        roi_x1_begin = self.x1_left_px * resize_value
+        roi_x2_begin = self.x2_left_px * resize_value
+        roi_y1_begin = self.y1_bottom_px * resize_value
 
         # Pre-process image for Tesseract.
         img = cv2.imread(file_path)
@@ -131,7 +158,7 @@ class FncStrategy(ABC):
 
         # Get basic details about the image, so we can loop over
         # each column to check the measure numbers.
-        columns = math.floor(w / column_width)
+        columns = round(w / column_width)
 
         # Loop over each ROI and get the text. First column always starts with 1.
         column_dict: dict[int, int] = {0: 1}
@@ -186,4 +213,26 @@ class FncStrategy(ABC):
         # Creates the Discord embed to be posted by the bot.
         # This will depend on the strategy's implementation, as different games may have the need for
         # different information being shown.
+        raise
+
+    @abstractmethod
+    async def get_local_song_id_folder(self) -> str:
+        # Builds up the location of the Song ID folder on the drive.
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_songs(self):
+        # Gets the information about all Songs for the given game. This is used for autocompletion.
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_song(self, **kwargs):
+        # Gets the information about a single Song object (the Song object may look different from
+        # game to game).
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_difficulty(self, **kwargs):
+        # Gets the information about a single Difficulty object based on a selected Song
+        # (the Difficulty object may look different from game to game).
         raise NotImplementedError
