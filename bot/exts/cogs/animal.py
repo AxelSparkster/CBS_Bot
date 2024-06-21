@@ -1,7 +1,8 @@
 import logging
+import random
 import requests
 from discord.ext import commands
-
+from typing import get_args
 from bot.resources.models.animals import ANIMAL_LITERAL
 
 
@@ -16,7 +17,7 @@ class AnimalsCog(commands.Cog):
         self._last_member = None
 
     @commands.hybrid_command(name="possum", description="Get a random possum image. 2 times/user/day.")
-    @commands.cooldown(2, 86400, commands.BucketType.user)
+    @commands.cooldown(1, 86400, commands.BucketType.user)
     async def possum(self, ctx) -> None:
         await ctx.send(get_random_animal_image("poss"))
 
@@ -24,6 +25,13 @@ class AnimalsCog(commands.Cog):
     @commands.cooldown(1, 86400, commands.BucketType.user)
     async def random_animal(self, ctx, animal: ANIMAL_LITERAL) -> None:
         await ctx.send(get_random_animal_image(animal))
+
+    @commands.hybrid_command(name="truerandomanimal", description="Get a COMPLETELY random animal image."
+                                                                  "1 time/user/day.")
+    @commands.cooldown(1, 86400, commands.BucketType.user)
+    async def true_random_animal(self, ctx) -> None:
+        random_animal = random.choice(get_args(ANIMAL_LITERAL))
+        await ctx.send(get_random_animal_image(random_animal))
 
     @random_animal.error
     @possum.error
