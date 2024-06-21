@@ -10,7 +10,8 @@ import bot.exts.database as database
 from bot.exts.cogs.administrative import AdministrativeCog
 from bot.exts.cogs.animal import AnimalsCog
 from bot.exts.cogs.messagedetection import MessageDetectionCog
-from bot.exts.cogs.vextage import VextageCog
+from bot.exts.cogs.sdvxplus import SdvxPlusCog
+from bot.exts.cogs.sdvxindex import SdvxindexCog
 from bot.utils.detectionutils import check_message_for_matches
 
 
@@ -73,6 +74,7 @@ async def main():
     await DISCORD_CLIENT.add_cog(AnimalsCog(DISCORD_CLIENT))
     await DISCORD_CLIENT.add_cog(AdministrativeCog(DISCORD_CLIENT))
     await DISCORD_CLIENT.add_cog(MessageDetectionCog(DISCORD_CLIENT))
-    await DISCORD_CLIENT.add_cog(VextageCog(DISCORD_CLIENT))
+    await DISCORD_CLIENT.add_cog(SdvxindexCog(DISCORD_CLIENT))
+    await DISCORD_CLIENT.add_cog(SdvxPlusCog(DISCORD_CLIENT))
     DISCORD_CLIENT.run(os.getenv('TOKEN'))
 

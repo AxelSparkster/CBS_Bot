@@ -37,6 +37,22 @@ class Song(Struct, kw_only=True):
     difficulties: list[Difficulty] = None
 
 
+class DifficultyPlus(Struct, kw_only=True):
+    idx: int = 0
+    effector: str = ""
+    level: int = 0
+    name: str = ""
+    jacketPath: str = ""
+
+
+class SongPlus(Struct, kw_only=True):
+    diffs: list[DifficultyPlus] = None
+    id: int = 0
+    title: str = ""
+    artist: str = ""
+    dateAdded: int = 0
+
+
 LEVEL_MAPPINGS = {"novice": {"shorthand": "NOV", "url_mapping": "1",
                              "color": discord.Color.from_rgb(145, 75, 198)},
                   "advanced": {"shorthand": "ADV", "url_mapping": "2",

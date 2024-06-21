@@ -17,40 +17,14 @@ SONG_LIST: list[Song] = msgspec.json.decode(SONGS, type=list[Song])
 
 
 class SdvxFncStrategy(FncStrategy):
-    def __init__(self, x1_h_px, x2_h_px, y1_w_px, spacing_px, bottom_cutoff_px, ocr_scale_multiplier,
+    def __init__(self, x1_left_px, x2_left_px, y1_bottom_px, spacing_px, bottom_cutoff_px, ocr_scale_multiplier,
                  measure_oob_tol, game_title):
-        super(SdvxFncStrategy, self).__init__(x1_h_px, x2_h_px, y1_w_px, spacing_px, bottom_cutoff_px,
+        super(SdvxFncStrategy, self).__init__(x1_left_px, x2_left_px, y1_bottom_px, spacing_px, bottom_cutoff_px,
                                               ocr_scale_multiplier, measure_oob_tol, game_title)
         pass
 
     async def execute_strategy(self, ctx, **kwargs):
-        song = kwargs["song"]
-        difficulty = kwargs["difficulty"]
-        bar_clip = kwargs["bar_clip"]
-
-        await self.sanitize_inputs(ctx, song=song, difficulty=difficulty, bar_clip=bar_clip)
-        selected_song = await self.get_song(song)
-        selected_difficulty = await self.get_difficulty(selected_song, difficulty)
-        bar_start, bar_end = await self.get_barclip(bar_clip)
-        chart_url = await self.get_song_url(song=selected_song, difficulty=selected_difficulty)
-        local_file_path = await self.download_image_file(song=selected_song, difficulty=selected_difficulty)
-
-        measure_numbers: dict[int, int]
-        if await self.measure_file_exists(song=selected_song, difficulty=selected_difficulty):
-            measure_numbers = await self.get_measure_numbers_from_file(song=selected_song,
-                                                                       difficulty=selected_difficulty)
-        else:
-            measure_numbers = await self.get_measure_numbers_from_image(local_file_path)
-            await self.save_measure_numbers_to_file(measure_numbers, song=selected_song,
-                                                    difficulty=selected_difficulty)
-
-        measure_numbers_adjusted = await self.adjust_measures(measure_numbers)
-        start_column, end_column = await self.get_columns_from_barclip(measure_numbers_adjusted, bar_start, bar_end)
-        cropped_image_path = await self.crop_image(local_file_path, start_column, end_column)
-        embed = await self.create_embed(cropped_image_path, chart_url, song=selected_song,
-                                        difficulty=selected_difficulty)
-        image_file = discord.File(cropped_image_path)
-        await ctx.followup.send(embed=embed, file=image_file)
+        await super(SdvxFncStrategy, self).execute_strategy(ctx, **kwargs)
 
     async def map_chart_name(self, **kwargs) -> str:
         level_type = kwargs["level_type"]
@@ -77,16 +51,16 @@ class SdvxFncStrategy(FncStrategy):
         difficulty = kwargs["difficulty"]
 
         image = requests.get(f'https://sdvxindex.com{difficulty.columnPath}').content
-        path = (f'{SONG_DATA_FOLDER}{self.game_title}/{song.songid}/'
-                f'{await self.map_chart_filename(song=song, difficulty=difficulty)}.png')
-        if not os.path.isfile(path):
+        filename = await self.get_local_song_id_folder_plus_filename(song=song, difficulty=difficulty)
+        if not os.path.isfile(filename):
             # Cache the file if it doesn't exist.
-            os.makedirs(f'{SONG_DATA_FOLDER}{self.game_title}/{song.songid}/', exist_ok=True)
-            with open(path, "wb") as handler:
+            path = await self.get_local_song_id_folder(song=song)
+            os.makedirs(path, exist_ok=True)
+            with open(filename, "wb") as handler:
                 handler.write(image)
         else:
-            logging.warning(f"Cached file already found, using file {path}.")
-        return path
+            logging.warning(f"Cached file already found, using file {filename}.")
+        return filename
 
     async def get_measure_numbers_from_image(self, file_path: str) -> dict[int, int]:
         return await super(SdvxFncStrategy, self).get_measure_numbers_from_image(file_path)
@@ -154,36 +128,44 @@ class SdvxFncStrategy(FncStrategy):
 
     async def measure_file_exists(self, **kwargs) -> bool:
         song = kwargs["song"]
+        difficulty = kwargs["difficulty"]
 
-        filename = await self.get_measure_file_name(song=song, difficulty=kwargs["difficulty"])
-        test = os.path.isfile(f"{SONG_DATA_FOLDER}{self.game_title}/{song.songid}/{filename}")
-        return test
+        filename = await self.get_measure_file_name(song=song, difficulty=difficulty)
+        path = await self.get_local_song_id_folder(song=song)
+        return os.path.isfile(f"{path}{filename}")
 
     async def get_measure_numbers_from_file(self, **kwargs) -> dict[int, int]:
         song = kwargs["song"]
 
         filename = await self.get_measure_file_name(song=song, difficulty=kwargs["difficulty"])
-        with open(f"{SONG_DATA_FOLDER}{self.game_title}/{song.songid}/{filename}") as fp:
+        path = await self.get_local_song_id_folder(song=song)
+        with open(f"{path}{filename}") as fp:
             data = json.load(fp)
         return {int(key): value for key, value in data.items()}
 
     async def save_measure_numbers_to_file(self, measures: dict[int, int], **kwargs):
         song = kwargs["song"]
+        difficulty = kwargs["difficulty"]
 
-        filename = await self.get_measure_file_name(song=song, difficulty=kwargs["difficulty"])
-        path = f"{SONG_DATA_FOLDER}{self.game_title}/{song.songid}/{filename}"
-        os.makedirs(f"{SONG_DATA_FOLDER}{self.game_title}/{song.songid}/", exist_ok=True)
-        with open(path, 'w') as fp:
+        filename = await self.get_measure_file_name(song=song, difficulty=difficulty)
+        path = await self.get_local_song_id_folder(song=song)
+        os.makedirs(path, exist_ok=True)
+        with open(f"{path}{filename}", 'w') as fp:
             json.dump(measures, fp)
 
-    @staticmethod
-    async def get_songs():
+    async def get_local_song_id_folder_plus_filename(self, **kwargs) -> str:
+        filename = await self.map_chart_filename(song=kwargs['song'], difficulty=kwargs["difficulty"])
+        path = self.get_local_song_id_folder(song=kwargs["song"])
+        return f"{path}{filename}"
+
+    async def get_local_song_id_folder(self, **kwargs) -> str:
+        return f"{SONG_DATA_FOLDER}{self.game_title}/{kwargs['song'].songid}/"
+
+    async def get_songs(self):
         return [x.title for x in SONG_LIST]
 
-    @staticmethod
-    async def get_song(title: str):
-        return next(x for x in SONG_LIST if x.title.lower() == title.lower())
+    async def get_song(self, **kwargs):
+        return next(x for x in SONG_LIST if x.title.lower() == kwargs["title"].lower())
 
-    @staticmethod
-    async def get_difficulty(song: Song, level: str):
-        return next(x for x in song.difficulties if x.level == int(level))
+    async def get_difficulty(self, **kwargs):
+        return next(x for x in kwargs["song"].difficulties if x.level == int(kwargs["difficulty"]))
