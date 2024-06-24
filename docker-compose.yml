@@ -4,8 +4,8 @@ networks:
 
 services:
   selenium:
-    # For Pi 3b, use seleniarm/standalone-chromium. Otherwise, use selenium/standalone-chrome.
     image: seleniarm/standalone-chromium
+    restart: always
     ports:
       - "4444:4444"
     networks:
