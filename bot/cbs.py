@@ -12,6 +12,7 @@ from bot.exts.cogs.animal import AnimalsCog
 from bot.exts.cogs.messagedetection import MessageDetectionCog
 from bot.exts.cogs.sdvxplus import SdvxPlusCog
 from bot.exts.cogs.sdvxindex import SdvxindexCog
+from bot.exts.cogs.threeicecream import ThreeIceCreamCog
 from bot.utils.detectionutils import check_message_for_matches
 
 
@@ -76,5 +77,6 @@ async def main():
     await DISCORD_CLIENT.add_cog(MessageDetectionCog(DISCORD_CLIENT))
     await DISCORD_CLIENT.add_cog(SdvxindexCog(DISCORD_CLIENT))
     await DISCORD_CLIENT.add_cog(SdvxPlusCog(DISCORD_CLIENT))
+    await DISCORD_CLIENT.add_cog(ThreeIceCreamCog(DISCORD_CLIENT))
     DISCORD_CLIENT.run(os.getenv('TOKEN'))
 

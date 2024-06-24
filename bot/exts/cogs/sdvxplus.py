@@ -17,6 +17,7 @@ class SdvxPlusCog(commands.Cog):
         self.strategy = SdvxPlusFncStrategy(x1_left_px=9,
                                             x2_left_px=32,
                                             y1_bottom_px=44,
+                                            y2_bottom_px=0,
                                             spacing_px=117,
                                             bottom_cutoff_px=24,
                                             ocr_scale_multiplier=2,

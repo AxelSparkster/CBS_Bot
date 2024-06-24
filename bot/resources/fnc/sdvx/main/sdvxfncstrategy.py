@@ -17,10 +17,10 @@ SONG_LIST: list[Song] = msgspec.json.decode(SONGS, type=list[Song])
 
 
 class SdvxFncStrategy(FncStrategy):
-    def __init__(self, x1_left_px, x2_left_px, y1_bottom_px, spacing_px, bottom_cutoff_px, ocr_scale_multiplier,
-                 measure_oob_tol, game_title):
-        super(SdvxFncStrategy, self).__init__(x1_left_px, x2_left_px, y1_bottom_px, spacing_px, bottom_cutoff_px,
-                                              ocr_scale_multiplier, measure_oob_tol, game_title)
+    def __init__(self, x1_left_px, x2_left_px, y1_bottom_px, y2_bottom_px, spacing_px, bottom_cutoff_px,
+                 ocr_scale_multiplier, measure_oob_tol, game_title):
+        super(SdvxFncStrategy, self).__init__(x1_left_px, x2_left_px, y1_bottom_px, y2_bottom_px, spacing_px,
+                                              bottom_cutoff_px, ocr_scale_multiplier, measure_oob_tol, game_title)
         pass
 
     async def execute_strategy(self, ctx, **kwargs):
