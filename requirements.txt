@@ -13,3 +13,4 @@ pytesseract~=0.3.10
 numpy~=1.26.4
 thefuzz~=0.22.1
 selenium~=4.22.0
+webdrivermanager~=0.10.0
