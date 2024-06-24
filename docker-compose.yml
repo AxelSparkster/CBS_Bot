@@ -1,5 +1,5 @@
 networks:
-    cbs-network:
+    mongo-network:
       driver: bridge
 
 services:
@@ -8,7 +8,7 @@ services:
     ports:
       - "4444:4444"
     networks:
-      - cbs-network
+      - mongo-network
   mongo:
     # For Pi 3B, use 4.4.1. Otherwise, use :latest.
     image: mongo:4.4.1
@@ -21,7 +21,7 @@ services:
     ports:
       - "27017:27017"
     networks:
-      - cbs-network
+      - mongo-network
     volumes:
         - ./data/mongo:/data/db
         - ./data/mongo/config:/data/config
@@ -40,7 +40,7 @@ services:
       ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGODB_PASSWORD}
       ME_CONFIG_MONGODB_URL: mongodb://${MONGODB_USERNAME}:${MONGODB_PASSWORD}@mongo:27017/
     networks:
-      - cbs-network
+      - mongo-network
     env_file:
       - ./.env
 
@@ -55,7 +55,7 @@ services:
       TOKEN:
     networks:
       - mongo-network
-      - cbs-network
+      - mongo-network
     env_file:
       - ./.env
     restart: always
