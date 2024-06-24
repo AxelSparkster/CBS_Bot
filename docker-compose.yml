@@ -55,7 +55,6 @@ services:
       TOKEN:
     networks:
       - mongo-network
-      - mongo-network
     env_file:
       - ./.env
     restart: always
