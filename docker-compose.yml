@@ -1,10 +1,14 @@
-version: "3.8"
-
 networks:
-    mongo-network:
+    cbs-network:
       driver: bridge
 
 services:
+  selenium:
+    image: selenium/standalone-chrome
+    ports:
+      - "4444:4444"
+    networks:
+      - cbs-network
   mongo:
     # For Pi 3B, use 4.4.1. Otherwise, use :latest.
     image: mongo:4.4.1
@@ -15,9 +19,9 @@ services:
         MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
         MONGO_INITDB_DATABASE: ${MONGODB_DATABASE}
     ports:
-      - 27017:27017
+      - "27017:27017"
     networks:
-      - mongo-network
+      - cbs-network
     volumes:
         - ./data/mongo:/data/db
         - ./data/mongo/config:/data/config
@@ -30,13 +34,13 @@ services:
     restart: always
     container_name: mongo-express
     ports:
-      - 8081:8081
+      - "8081:8081"
     environment:
       ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGODB_USERNAME}
       ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGODB_PASSWORD}
       ME_CONFIG_MONGODB_URL: mongodb://${MONGODB_USERNAME}:${MONGODB_PASSWORD}@mongo:27017/
     networks:
-      - mongo-network
+      - cbs-network
     env_file:
       - ./.env
 
@@ -45,10 +49,13 @@ services:
     container_name: cbs-bot
     volumes:
       - ./data:/usr/src/bot/data
+    depends_on:
+      - selenium
     environment:
       TOKEN:
     networks:
       - mongo-network
+      - cbs-network
     env_file:
       - ./.env
     restart: always

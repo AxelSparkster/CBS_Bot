@@ -15,8 +15,8 @@ pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
 class FncStrategy(ABC):
     @abstractmethod
-    def __init__(self, x1_left_px, x2_left_px, y1_bottom_px, spacing_px, bottom_cutoff_px, ocr_scale_multiplier,
-                 measure_oob_tol, game_title):
+    def __init__(self, x1_left_px, x2_left_px, y1_bottom_px, y2_bottom_px,
+                 spacing_px, bottom_cutoff_px, ocr_scale_multiplier, measure_oob_tol, game_title):
         """
         Notes:
         x1_left_px - The number, in pixels, from the top left corner of the ROI (Region of Interest)
@@ -24,6 +24,8 @@ class FncStrategy(ABC):
         x2_left_px - The number, in pixels, from the bottom right corner of the ROI
             to the LEFT side of the image.
         y1_bottom_px - The number, in pixels, from the top left corner of the ROI
+            to the BOTTOM side of the image.
+        y2_bottom_px - The number, in pixels, from the bottom right corner of the ROI
             to the BOTTOM side of the image.
         ocr_scale_multiplier - The multiplier of how much the image should be scaled by to get better
             readability for the numbers. NOTE: A bigger number means the process may take longer.
@@ -36,6 +38,7 @@ class FncStrategy(ABC):
         self.x1_left_px = x1_left_px
         self.x2_left_px = x2_left_px
         self.y1_bottom_px = y1_bottom_px
+        self.y2_bottom_px = y2_bottom_px
         self.spacing_px = spacing_px
         self.bottom_cutoff_px = bottom_cutoff_px
         self.ocr_scale_multiplier = ocr_scale_multiplier
@@ -62,11 +65,11 @@ class FncStrategy(ABC):
                                                                        difficulty=selected_difficulty)
         else:
             measure_numbers = await self.get_measure_numbers_from_image(local_file_path)
+            measure_numbers = await self.adjust_measures(measure_numbers)
             await self.save_measure_numbers_to_file(measure_numbers, song=selected_song,
                                                     difficulty=selected_difficulty)
 
-        measure_numbers_adjusted = await self.adjust_measures(measure_numbers)
-        start_column, end_column = await self.get_columns_from_barclip(measure_numbers_adjusted, bar_start, bar_end)
+        start_column, end_column = await self.get_columns_from_barclip(measure_numbers, bar_start, bar_end)
         cropped_image_path = await self.crop_image(local_file_path, start_column, end_column)
         embed = await self.create_embed(cropped_image_path, chart_url, song=selected_song,
                                         difficulty=selected_difficulty)
@@ -147,6 +150,7 @@ class FncStrategy(ABC):
         roi_x1_begin = self.x1_left_px * resize_value
         roi_x2_begin = self.x2_left_px * resize_value
         roi_y1_begin = self.y1_bottom_px * resize_value
+        roi_y2_begin = self.y2_bottom_px * resize_value
 
         # Pre-process image for Tesseract.
         img = cv2.imread(file_path)
@@ -166,7 +170,7 @@ class FncStrategy(ABC):
             roi_x_1 = roi_x1_begin + (column_num * column_width)
             roi_y_1 = h - roi_y1_begin
             roi_x_2 = roi_x2_begin + (column_num * column_width)
-            roi_y_2 = h
+            roi_y_2 = h - roi_y2_begin
             roi = thresh[roi_y_1:roi_y_2, roi_x_1:roi_x_2]
             data = pytesseract.image_to_string(roi, lang='eng', config='--psm 10 --oem 3 -c '
                                                                        'tessedit_char_whitelist=0123456789').strip()
