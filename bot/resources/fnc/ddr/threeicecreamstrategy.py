@@ -67,6 +67,7 @@ class ThreeIceCreamStrategy(FncStrategy):
         # 3icecream is weird, the chart only lives server-side for a handful of seconds once the chart's page has
         # been accessed. Therefore, we need to use Selenium to load the page and just grab the image while it's
         # still existent using our "usual" method.
+        logging.warning(f"Creating WebDriver.")
         options = Options()
         options.add_argument("--headless")
         options.add_argument('--disable-gpu')
@@ -76,9 +77,11 @@ class ThreeIceCreamStrategy(FncStrategy):
         driver = webdriver.Remote(options=options, command_executor=SELENIUM_URL)
 
         try:
+            logging.warning(f"Attempting to get page at {url}.")
             driver.get(url)
             ba = driver.find_element(By.XPATH, '/html/body/img')
             image = requests.get(ba.get_attribute('src')).content
+            logging.warning(f"Image attributes successfully retrieved, downloading file {image}.")
             if not os.path.isfile(filename):
                 # Cache the file if it doesn't exist.
                 os.makedirs(path, exist_ok=True)
@@ -87,9 +90,10 @@ class ThreeIceCreamStrategy(FncStrategy):
             else:
                 logging.warning(f"Cached file already found, using file {filename}.")
             driver.quit()
+            logging.warning(f"Successfully downloaded image. Local path: {filename}.")
             return filename
         except Exception as e:
-            print(e)
+            logging.warning(f"Error occurred getting image. Error: {e}.")
             driver.quit()
             raise e
 
@@ -194,7 +198,6 @@ class ThreeIceCreamStrategy(FncStrategy):
         return next(x for x in SONG_LIST if x.song_name.lower() == kwargs["title"].lower())
 
     async def get_difficulty(self, **kwargs):
-        logging.warning(kwargs["difficulty"])
         return kwargs["difficulty"]
 
     @staticmethod
