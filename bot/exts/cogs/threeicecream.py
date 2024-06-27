@@ -19,6 +19,7 @@ class ThreeIceCreamCog(commands.Cog):
                                               y1_bottom_px=915,
                                               y2_bottom_px=889,
                                               spacing_px=160,
+                                              doubles_spacing_px=288,
                                               bottom_cutoff_px=24,
                                               ocr_scale_multiplier=2,
                                               measure_oob_tol=5,

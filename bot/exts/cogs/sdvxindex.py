@@ -19,6 +19,7 @@ class SdvxindexCog(commands.Cog):
                                         y1_bottom_px=35,
                                         y2_bottom_px=0,
                                         spacing_px=254,
+                                        doubles_spacing_px=None,
                                         bottom_cutoff_px=11,
                                         ocr_scale_multiplier=2,
                                         measure_oob_tol=20,

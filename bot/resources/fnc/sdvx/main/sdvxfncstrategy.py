@@ -17,10 +17,11 @@ SONG_LIST: list[Song] = msgspec.json.decode(SONGS, type=list[Song])
 
 
 class SdvxFncStrategy(FncStrategy):
-    def __init__(self, x1_left_px, x2_left_px, y1_bottom_px, y2_bottom_px, spacing_px, bottom_cutoff_px,
-                 ocr_scale_multiplier, measure_oob_tol, game_title):
+    def __init__(self, x1_left_px, x2_left_px, y1_bottom_px, y2_bottom_px, spacing_px, doubles_spacing_px,
+                 bottom_cutoff_px, ocr_scale_multiplier, measure_oob_tol, game_title):
         super(SdvxFncStrategy, self).__init__(x1_left_px, x2_left_px, y1_bottom_px, y2_bottom_px, spacing_px,
-                                              bottom_cutoff_px, ocr_scale_multiplier, measure_oob_tol, game_title)
+                                              doubles_spacing_px, bottom_cutoff_px, ocr_scale_multiplier,
+                                              measure_oob_tol, game_title)
         pass
 
     async def execute_strategy(self, ctx, **kwargs):
@@ -62,8 +63,11 @@ class SdvxFncStrategy(FncStrategy):
             logging.warning(f"Cached file already found, using file {filename}.")
         return filename
 
-    async def get_measure_numbers_from_image(self, file_path: str) -> dict[int, int]:
-        return await super(SdvxFncStrategy, self).get_measure_numbers_from_image(file_path)
+    async def use_doubles_spacing(self, **kwargs):
+        return await super(SdvxFncStrategy, self).use_doubles_spacing(**kwargs)
+
+    async def get_measure_numbers_from_image(self, file_path: str, use_doubles_spacing: bool) -> dict[int, int]:
+        return await super(SdvxFncStrategy, self).get_measure_numbers_from_image(file_path, use_doubles_spacing)
 
     async def adjust_measures(self, column_dict: dict[int, int]) -> dict[int, int]:
         return await super(SdvxFncStrategy, self).adjust_measures(column_dict)
@@ -102,8 +106,10 @@ class SdvxFncStrategy(FncStrategy):
         return (f"https://sdvxindex.com/s/{kwargs['song'].songid}/"
                 f"{await self.map_chart_type(level_type=kwargs['difficulty'].type)}")
 
-    async def crop_image(self, local_file_path: str, start_column: int, end_column: int) -> str:
-        return await super(SdvxFncStrategy, self).crop_image(local_file_path, start_column, end_column)
+    async def crop_image(self, local_file_path: str, start_column: int, end_column: int,
+                         use_doubles_spacing: bool) -> str:
+        return await super(SdvxFncStrategy, self).crop_image(local_file_path, start_column, end_column,
+                                                             use_doubles_spacing)
 
     async def create_embed(self, cropped_image_path: str, chart_url: str, **kwargs) -> Embed:
         song = kwargs["song"]
@@ -155,7 +161,7 @@ class SdvxFncStrategy(FncStrategy):
 
     async def get_local_song_id_folder_plus_filename(self, **kwargs) -> str:
         filename = await self.map_chart_filename(song=kwargs['song'], difficulty=kwargs["difficulty"])
-        path = self.get_local_song_id_folder(song=kwargs["song"])
+        path = await self.get_local_song_id_folder(song=kwargs["song"])
         return f"{path}{filename}"
 
     async def get_local_song_id_folder(self, **kwargs) -> str:

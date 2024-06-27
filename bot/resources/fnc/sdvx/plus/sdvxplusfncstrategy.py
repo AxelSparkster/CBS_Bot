@@ -17,10 +17,11 @@ SONG_LIST: list[SongPlus] = msgspec.json.decode(SONGSPLUS, type=list[SongPlus])
 
 
 class SdvxPlusFncStrategy(SdvxFncStrategy):
-    def __init__(self, x1_left_px, x2_left_px, y1_bottom_px, y2_bottom_px, spacing_px, bottom_cutoff_px,
-                 ocr_scale_multiplier, measure_oob_tol, game_title):
+    def __init__(self, x1_left_px, x2_left_px, y1_bottom_px, y2_bottom_px, spacing_px, doubles_spacing_px,
+                 bottom_cutoff_px, ocr_scale_multiplier, measure_oob_tol, game_title):
         super(SdvxPlusFncStrategy, self).__init__(x1_left_px, x2_left_px, y1_bottom_px, y2_bottom_px, spacing_px,
-                                                  bottom_cutoff_px, ocr_scale_multiplier, measure_oob_tol, game_title)
+                                                  doubles_spacing_px, bottom_cutoff_px, ocr_scale_multiplier,
+                                                  measure_oob_tol, game_title)
         pass
 
     async def execute_strategy(self, ctx, **kwargs):
@@ -55,8 +56,11 @@ class SdvxPlusFncStrategy(SdvxFncStrategy):
             logging.warning(f"Cached file already found, using file {path}.")
         return path
 
-    async def get_measure_numbers_from_image(self, file_path: str) -> dict[int, int]:
-        return await super(SdvxPlusFncStrategy, self).get_measure_numbers_from_image(file_path)
+    async def use_doubles_spacing(self, **kwargs):
+        return await super(SdvxPlusFncStrategy, self).use_doubles_spacing(**kwargs)
+
+    async def get_measure_numbers_from_image(self, file_path: str, use_doubles_spacing: bool) -> dict[int, int]:
+        return await super(SdvxPlusFncStrategy, self).get_measure_numbers_from_image(file_path, use_doubles_spacing)
 
     async def adjust_measures(self, column_dict: dict[int, int]) -> dict[int, int]:
         return await super(SdvxPlusFncStrategy, self).adjust_measures(column_dict)
@@ -94,8 +98,10 @@ class SdvxPlusFncStrategy(SdvxFncStrategy):
     async def get_song_url(self, **kwargs) -> str:
         return f"https://sdvxplus.zip/unzip/{kwargs['song'].id}/{kwargs['difficulty'].idx}"
 
-    async def crop_image(self, local_file_path: str, start_column: int, end_column: int) -> str:
-        return await super(SdvxPlusFncStrategy, self).crop_image(local_file_path, start_column, end_column)
+    async def crop_image(self, local_file_path: str, start_column: int, end_column: int,
+                         use_doubles_spacing: bool) -> str:
+        return await super(SdvxPlusFncStrategy, self).crop_image(local_file_path, start_column, end_column,
+                                                                 use_doubles_spacing)
 
     async def create_embed(self, cropped_image_path: str, chart_url: str, **kwargs) -> Embed:
         song = kwargs["song"]

@@ -15,8 +15,8 @@ pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
 class FncStrategy(ABC):
     @abstractmethod
-    def __init__(self, x1_left_px, x2_left_px, y1_bottom_px, y2_bottom_px,
-                 spacing_px, bottom_cutoff_px, ocr_scale_multiplier, measure_oob_tol, game_title):
+    def __init__(self, x1_left_px, x2_left_px, y1_bottom_px, y2_bottom_px, spacing_px, doubles_spacing_px,
+                 bottom_cutoff_px, ocr_scale_multiplier, measure_oob_tol, game_title):
         """
         Notes:
         x1_left_px - The number, in pixels, from the top left corner of the ROI (Region of Interest)
@@ -40,6 +40,7 @@ class FncStrategy(ABC):
         self.y1_bottom_px = y1_bottom_px
         self.y2_bottom_px = y2_bottom_px
         self.spacing_px = spacing_px
+        self.doubles_spacing_px = doubles_spacing_px
         self.bottom_cutoff_px = bottom_cutoff_px
         self.ocr_scale_multiplier = ocr_scale_multiplier
         self.measure_oob_tol = measure_oob_tol
@@ -58,19 +59,20 @@ class FncStrategy(ABC):
         bar_start, bar_end = await self.get_barclip(bar_clip)
         chart_url = await self.get_song_url(song=selected_song, difficulty=selected_difficulty)
         local_file_path = await self.download_image_file(song=selected_song, difficulty=selected_difficulty)
+        use_doubles = await self.use_doubles_spacing(song=selected_song, difficulty=selected_difficulty)
 
         measure_numbers: dict[int, int]
         if await self.measure_file_exists(song=selected_song, difficulty=selected_difficulty):
             measure_numbers = await self.get_measure_numbers_from_file(song=selected_song,
                                                                        difficulty=selected_difficulty)
         else:
-            measure_numbers = await self.get_measure_numbers_from_image(local_file_path)
+            measure_numbers = await self.get_measure_numbers_from_image(local_file_path, use_doubles)
             measure_numbers = await self.adjust_measures(measure_numbers)
             await self.save_measure_numbers_to_file(measure_numbers, song=selected_song,
                                                     difficulty=selected_difficulty)
 
         start_column, end_column = await self.get_columns_from_barclip(measure_numbers, bar_start, bar_end)
-        cropped_image_path = await self.crop_image(local_file_path, start_column, end_column)
+        cropped_image_path = await self.crop_image(local_file_path, start_column, end_column, use_doubles)
         embed = await self.create_embed(cropped_image_path, chart_url, song=selected_song,
                                         difficulty=selected_difficulty)
         image_file = discord.File(cropped_image_path)
@@ -142,11 +144,23 @@ class FncStrategy(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_measure_numbers_from_image(self, file_path: str) -> dict[int, int]:
+    async def use_doubles_spacing(self, **kwargs):
+        # Determines if we should use doubles spacing for a given chart based off of criteria.
+        # By default, we'll use False since most games don't have doubles charts.
+        return False
+
+    @abstractmethod
+    async def get_measure_numbers_from_image(self, file_path: str, use_doubles_spacing: bool) -> dict[int, int]:
         # Downloads the image from a given website and merges the chart and measure numbers together (if applicable).
+        logging.warning(f"Starting to OCR file: {file_path}. Doubles spacing: {use_doubles_spacing}")
+        spacing_value: int
+        if use_doubles_spacing:
+            spacing_value = self.doubles_spacing_px
+        else:
+            spacing_value = self.spacing_px
 
         resize_value = self.ocr_scale_multiplier
-        column_width = self.spacing_px * resize_value
+        column_width = spacing_value * resize_value
         roi_x1_begin = self.x1_left_px * resize_value
         roi_x2_begin = self.x2_left_px * resize_value
         roi_y1_begin = self.y1_bottom_px * resize_value
@@ -186,12 +200,16 @@ class FncStrategy(ABC):
 
         # Get the average difference between measures.
         new_dict = column_dict.copy()
+        # TODO: The next line will return 0 if the last number is misread and is small. Fix it somehow?
         avg_measures = round(numpy.diff(list(new_dict.values())).sum() / (len(new_dict) - 1))
+        logging.warning(f"Average measure increase: {avg_measures}.")
         for i in range(len(new_dict)):
             if i == 0:
                 continue  # First value is always 1 by default, skip.
             if new_dict[i] <= new_dict[i-1] or new_dict[i] - new_dict[i-1] >= self.measure_oob_tol:
                 new_dict[i] = new_dict[i-1] + avg_measures
+        logging.warning(f"Old measure numbers: {column_dict}.")
+        logging.warning(f"New measure numbers: {new_dict}.")
         return new_dict
 
     @abstractmethod
@@ -202,12 +220,21 @@ class FncStrategy(ABC):
         return start_column, end_column
 
     @abstractmethod
-    async def crop_image(self, local_file_path: str, start_column: int, end_column: int) -> str:
+    async def crop_image(self, local_file_path: str, start_column: int, end_column: int,
+                         use_doubles_spacing: bool) -> str:
         # Crops the image based off of the characteristics given during strategy creation.
+        logging.warning(f"Cropping started for file: {local_file_path}.")
+
+        spacing_value: int
+        if use_doubles_spacing:
+            spacing_value = self.doubles_spacing_px
+        else:
+            spacing_value = self.spacing_px
+
         img = cv2.imread(local_file_path)
         h, w, c = img.shape
-        crop_x_start = self.spacing_px * start_column
-        crop_x_end = self.spacing_px * end_column
+        crop_x_start = spacing_value * start_column
+        crop_x_end = spacing_value * end_column
         crop = img[0:h, crop_x_start:crop_x_end]
         cv2.imwrite(f"{SONG_DATA_FOLDER}/{self.game_title}/{OUTPUT_FILE_NAME}", crop)
         return f"{SONG_DATA_FOLDER}/{self.game_title}/{OUTPUT_FILE_NAME}"

@@ -9,9 +9,6 @@ import pytesseract
 import requests
 
 from discord import Embed
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
 from unidecode import unidecode
 
 from bot.resources.fnc.ddr.ddrfncmodels import DdrSong
@@ -19,7 +16,6 @@ from bot.resources.fnc.ddr.songdata import DDR_SONGS
 from bot.resources.fnc.fncconstants import SONG_DATA_FOLDER, OUTPUT_FILE_NAME, DEFAULT_BARCLIP, BARCLIP_REGEX
 from bot.resources.fnc.fncstrategy import FncStrategy
 from bot.resources.fnc.ddr.ddrfncmodels import LEVEL_MAPPINGS, VERSION_MAPPINGS
-from definitions import SELENIUM_URL
 
 SONG_LIST: list[DdrSong] = msgspec.json.decode(DDR_SONGS, type=list[DdrSong])
 
@@ -27,10 +23,11 @@ pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
 
 class ThreeIceCreamStrategy(FncStrategy):
-    def __init__(self, x1_left_px, x2_left_px, y1_bottom_px, y2_bottom_px, spacing_px, bottom_cutoff_px,
-                 ocr_scale_multiplier, measure_oob_tol, game_title):
+    def __init__(self, x1_left_px, x2_left_px, y1_bottom_px, y2_bottom_px, spacing_px, doubles_spacing_px,
+                 bottom_cutoff_px, ocr_scale_multiplier, measure_oob_tol, game_title):
         super(ThreeIceCreamStrategy, self).__init__(x1_left_px, x2_left_px, y1_bottom_px, y2_bottom_px, spacing_px,
-                                                    bottom_cutoff_px, ocr_scale_multiplier, measure_oob_tol, game_title)
+                                                    doubles_spacing_px, bottom_cutoff_px, ocr_scale_multiplier,
+                                                    measure_oob_tol, game_title)
         pass
 
     async def execute_strategy(self, ctx, **kwargs):
@@ -56,9 +53,10 @@ class ThreeIceCreamStrategy(FncStrategy):
         song = kwargs["song"]
         difficulty = kwargs["difficulty"]
 
-        url = await self.get_song_url(song=song, difficulty=difficulty)
+        chart_url = await self.get_song_url(song=song, difficulty=difficulty)
         filename = await self.get_local_song_id_folder_plus_filename(song=song, difficulty=difficulty) + ".png"
         path = await self.get_local_song_id_folder(song=song)
+        file_url = f'https://3icecream.com/img/charts/{song.song_id}-{difficulty["rating_index"]}-x2.png'
 
         if os.path.isfile(filename):
             logging.warning(f"Cached file already found, using file {filename}.")
@@ -66,46 +64,36 @@ class ThreeIceCreamStrategy(FncStrategy):
 
         try:
             # 3icecream is weird, the chart only lives server-side for a handful of seconds once the chart's page has
-            # been accessed. Therefore, we need to use Selenium to load the page and just grab the image while it's
+            # been accessed. Therefore, we need to send a GET request to the page and just grab the image while it's
             # still existent using our "usual" method.
-            logging.warning(f"Creating WebDriver.")
-            options = Options()
-            options.add_argument("--disable-dev-shm-usage")
-            options.add_argument("--no-sandbox")
-            options.add_argument("--headless")
-            options.add_argument('--disable-gpu')
-            user_agent = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, '
-                          'like Gecko) Chrome/83.0.4103.116 Safari/537.36')
-            options.add_argument(f'user-agent={user_agent}')
-            driver = webdriver.Remote(options=options, command_executor=SELENIUM_URL)
-
-            try:
-                logging.warning(f"Attempting to get page at {url}.")
-                driver.get(url)
-                ba = driver.find_element(By.XPATH, '/html/body/img')
-                image = requests.get(ba.get_attribute('src')).content
-                logging.warning(f"Image attributes successfully retrieved, downloading file {image}.")
-                if not os.path.isfile(filename):
-                    # Cache the file if it doesn't exist.
-                    os.makedirs(path, exist_ok=True)
-                    with open(filename, "wb") as handler:
-                        handler.write(image)
-                else:
-                    logging.warning(f"Cached file already found, using file {filename}.")
-                driver.quit()
-                logging.warning(f"Successfully downloaded image. Local path: {filename}.")
-                return filename
-            except Exception as e:
-                logging.warning(f"Error occurred getting image. Error: {e}.")
-                driver.quit()
-                raise e
-
+            logging.warning(f"Attempting to get page at {chart_url}.")
+            requests.get(chart_url)
+            logging.warning(f"Downloading image from {file_url}.")
+            image = requests.get(file_url).content
+            if not os.path.isfile(filename):
+                # Cache the file if it doesn't exist.
+                os.makedirs(path, exist_ok=True)
+                with open(filename, "wb") as handler:
+                    handler.write(image)
+            else:
+                logging.warning(f"Cached file already found, using file {filename}.")
+            logging.warning(f"Successfully downloaded image. Local path: {filename}.")
+            return filename
         except Exception as e:
-            logging.warning(f"Error occurred creating driver. Error: {e}.")
+            logging.warning(f"Error occurred getting image. Error: {e}.")
             raise e
 
-    async def get_measure_numbers_from_image(self, file_path: str) -> dict[int, int]:
-        return await super(ThreeIceCreamStrategy, self).get_measure_numbers_from_image(file_path)
+    async def use_doubles_spacing(self, **kwargs):
+        difficulty = kwargs["difficulty"]
+        if difficulty["rating_index"] > 4:
+            logging.warning("Using Doubles spacing.")
+            return True
+        else:
+            logging.warning("Using Singles spacing.")
+            return False
+
+    async def get_measure_numbers_from_image(self, file_path: str, use_doubles_spacing: bool) -> dict[int, int]:
+        return await super(ThreeIceCreamStrategy, self).get_measure_numbers_from_image(file_path, use_doubles_spacing)
 
     async def adjust_measures(self, column_dict: dict[int, int]) -> dict[int, int]:
         return await super(ThreeIceCreamStrategy, self).adjust_measures(column_dict)
@@ -144,8 +132,10 @@ class ThreeIceCreamStrategy(FncStrategy):
         return (f"https://3icecream.com/ren/chart?songId={kwargs['song'].song_id}"
                 f"&speedmod=2&diff={kwargs['difficulty']['rating_index']}")
 
-    async def crop_image(self, local_file_path: str, start_column: int, end_column: int) -> str:
-        return await super(ThreeIceCreamStrategy, self).crop_image(local_file_path, start_column, end_column)
+    async def crop_image(self, local_file_path: str, start_column: int, end_column: int,
+                         use_doubles_spacing: bool) -> str:
+        return await super(ThreeIceCreamStrategy, self).crop_image(local_file_path, start_column, end_column,
+                                                                   use_doubles_spacing)
 
     async def create_embed(self, cropped_image_path: str, chart_url: str, **kwargs) -> Embed:
         song = kwargs["song"]
