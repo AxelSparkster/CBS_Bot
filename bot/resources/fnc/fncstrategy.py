@@ -202,6 +202,9 @@ class FncStrategy(ABC):
         new_dict = column_dict.copy()
         # TODO: The next line will return 0 if the last number is misread and is small. Fix it somehow?
         avg_measures = round(numpy.diff(list(new_dict.values())).sum() / (len(new_dict) - 1))
+        if avg_measures == 0:
+            avg_measures = 3  # Temporary fix that should work most of the time until a better solution is made
+
         logging.warning(f"Average measure increase: {avg_measures}.")
         for i in range(len(new_dict)):
             if i == 0:
