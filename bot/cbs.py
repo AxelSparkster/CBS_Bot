@@ -51,7 +51,6 @@ async def can_message(ctx):
     guild_settings = database.SETTINGS_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id)}).limit(
         1).next()
     if not guild_settings["message_enabled"]:
-        logging.warning(f"Message blocked from being sent for {ctx.message.guild.id} due to messages being disabled.")
         return False
 
     return True

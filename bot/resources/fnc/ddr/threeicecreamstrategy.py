@@ -64,37 +64,44 @@ class ThreeIceCreamStrategy(FncStrategy):
             logging.warning(f"Cached file already found, using file {filename}.")
             return filename
 
-        # 3icecream is weird, the chart only lives server-side for a handful of seconds once the chart's page has
-        # been accessed. Therefore, we need to use Selenium to load the page and just grab the image while it's
-        # still existent using our "usual" method.
-        logging.warning(f"Creating WebDriver.")
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument('--disable-gpu')
-        user_agent = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, '
-                      'like Gecko) Chrome/83.0.4103.116 Safari/537.36')
-        options.add_argument(f'user-agent={user_agent}')
-        driver = webdriver.Remote(options=options, command_executor=SELENIUM_URL)
-
         try:
-            logging.warning(f"Attempting to get page at {url}.")
-            driver.get(url)
-            ba = driver.find_element(By.XPATH, '/html/body/img')
-            image = requests.get(ba.get_attribute('src')).content
-            logging.warning(f"Image attributes successfully retrieved, downloading file {image}.")
-            if not os.path.isfile(filename):
-                # Cache the file if it doesn't exist.
-                os.makedirs(path, exist_ok=True)
-                with open(filename, "wb") as handler:
-                    handler.write(image)
-            else:
-                logging.warning(f"Cached file already found, using file {filename}.")
-            driver.quit()
-            logging.warning(f"Successfully downloaded image. Local path: {filename}.")
-            return filename
+            # 3icecream is weird, the chart only lives server-side for a handful of seconds once the chart's page has
+            # been accessed. Therefore, we need to use Selenium to load the page and just grab the image while it's
+            # still existent using our "usual" method.
+            logging.warning(f"Creating WebDriver.")
+            options = Options()
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--headless")
+            options.add_argument('--disable-gpu')
+            user_agent = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, '
+                          'like Gecko) Chrome/83.0.4103.116 Safari/537.36')
+            options.add_argument(f'user-agent={user_agent}')
+            driver = webdriver.Remote(options=options, command_executor=SELENIUM_URL)
+
+            try:
+                logging.warning(f"Attempting to get page at {url}.")
+                driver.get(url)
+                ba = driver.find_element(By.XPATH, '/html/body/img')
+                image = requests.get(ba.get_attribute('src')).content
+                logging.warning(f"Image attributes successfully retrieved, downloading file {image}.")
+                if not os.path.isfile(filename):
+                    # Cache the file if it doesn't exist.
+                    os.makedirs(path, exist_ok=True)
+                    with open(filename, "wb") as handler:
+                        handler.write(image)
+                else:
+                    logging.warning(f"Cached file already found, using file {filename}.")
+                driver.quit()
+                logging.warning(f"Successfully downloaded image. Local path: {filename}.")
+                return filename
+            except Exception as e:
+                logging.warning(f"Error occurred getting image. Error: {e}.")
+                driver.quit()
+                raise e
+
         except Exception as e:
-            logging.warning(f"Error occurred getting image. Error: {e}.")
-            driver.quit()
+            logging.warning(f"Error occurred creating driver. Error: {e}.")
             raise e
 
     async def get_measure_numbers_from_image(self, file_path: str) -> dict[int, int]:
