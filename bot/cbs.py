@@ -48,12 +48,7 @@ async def can_message(ctx):
         return True
 
     # Check if we're allowed to send the message in the server
-    guild_settings = database.SETTINGS_COLLECTION.find({"guild_id": bson.int64.Int64(ctx.message.guild.id)}).limit(
-        1).next()
-    if not guild_settings["message_enabled"]:
-        return False
-
-    return True
+    return database.get_bot_messages_ability(ctx.message.guild.id)
 
 
 @DISCORD_CLIENT.event

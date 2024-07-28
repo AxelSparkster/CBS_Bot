@@ -46,3 +46,11 @@ def get_number_match_mentions(match_type: MatchType, guild_id: int):
 def set_bot_messages_ability(messages_enabled: bool, guild_id: int):
     SETTINGS_COLLECTION.update_one({"guild_id": bson.int64.Int64(guild_id)},
                                    {"$set": {"message_enabled": messages_enabled}})
+
+
+def get_bot_messages_ability(guild_id: int):
+    guild_settings = SETTINGS_COLLECTION.find({"guild_id": bson.int64.Int64(guild_id)}).limit(
+        1).next()
+    if not guild_settings["message_enabled"]:
+        return False
+    return True
