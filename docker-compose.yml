@@ -4,8 +4,7 @@ networks:
 
 services:
   mongo:
-    # For Pi 3B, use 4.4.1. Otherwise, use :latest.
-    image: mongo:4.4.1
+    image: mongo:latest
     restart: always
     container_name: mongo
     environment:
@@ -24,7 +23,7 @@ services:
       - ./.env
 
   mongo-express:
-    image: mongo-express
+    image: mongo-express:latest
     restart: always
     container_name: mongo-express
     ports:
