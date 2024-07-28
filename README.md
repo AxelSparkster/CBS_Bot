@@ -74,7 +74,7 @@ Currently supported commands:
 * Better detection of combo-based scoring mentions
 * Get the script directory in a potentially better way?
 * A `$cbs statistics` command to show top 5 or so people who mention "combo based" by querying the database
-* More features in general
+* More features in general 
 
 ## Contributing
 
