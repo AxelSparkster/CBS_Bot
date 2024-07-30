@@ -35,6 +35,7 @@ class AnimalsCog(commands.Cog):
 
     @random_animal.error
     @possum.error
+    @true_random_animal.error
     async def on_error(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):
             await ctx.send('Sorry, you\'re on cooldown! Try again in `{e:.1f}` seconds.'.format(e=error.retry_after),
