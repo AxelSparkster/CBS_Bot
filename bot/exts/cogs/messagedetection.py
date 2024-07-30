@@ -17,7 +17,7 @@ class MessageDetectionCog(commands.Cog):
     @commands.hybrid_command(name="lastmessage",
                              description="Gets information about the last time something was mentioned. "
                              "1 time/user/day.")
-    @commands.cooldown(1, 86400, commands.BucketType.user)
+    @commands.cooldown(1, 86400, commands.BucketType.member)
     async def lastmessage(self, ctx, match_type: MatchType) -> None:
         if match_type == MatchType.NO_MATCH:
             await ctx.send('That\'s not a valid match type! Try sending one of the other ones.', ephemeral=True)

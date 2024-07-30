@@ -17,18 +17,18 @@ class AnimalsCog(commands.Cog):
         self._last_member = None
 
     @commands.hybrid_command(name="possum", description="Get a random possum image. 2 times/user/day.")
-    @commands.cooldown(1, 86400, commands.BucketType.user)
+    @commands.cooldown(1, 86400, commands.BucketType.member)
     async def possum(self, ctx) -> None:
         await ctx.send(get_random_animal_image("poss"))
 
     @commands.hybrid_command(name="randomanimal", description="Get a random animal image. 1 time/user/day.")
-    @commands.cooldown(1, 86400, commands.BucketType.user)
+    @commands.cooldown(1, 86400, commands.BucketType.member)
     async def random_animal(self, ctx, animal: ANIMAL_LITERAL) -> None:
         await ctx.send(get_random_animal_image(animal))
 
     @commands.hybrid_command(name="truerandomanimal", description="Get a COMPLETELY random animal image."
                                                                   "1 time/user/day.")
-    @commands.cooldown(1, 86400, commands.BucketType.user)
+    @commands.cooldown(1, 86400, commands.BucketType.member)
     async def true_random_animal(self, ctx) -> None:
         random_animal = random.choice(get_args(ANIMAL_LITERAL))
         await ctx.send(get_random_animal_image(random_animal))

@@ -11,7 +11,7 @@ from bot.utils.timeutils import format_timedelta
 
 CBS_REGEX = "(?i)combo.*based|based.*combo"
 R1_REGEX = "(?i)(round1|r1|round one|round 1).*(mn|minnesota|minneapolis|mpls)|(mn|minnesota|minneapolis|mpls).*(round1|r1|round one|round 1)"
-CBS_COOLDOWN = commands.CooldownMapping.from_cooldown(2, 86400, commands.BucketType.user)
+CBS_COOLDOWN = commands.CooldownMapping.from_cooldown(2, 86400, commands.BucketType.member)
         
 
 # TODO: Extract into a strings file, or some other method
