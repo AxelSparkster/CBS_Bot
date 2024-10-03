@@ -45,14 +45,12 @@ class AnimalsCog(commands.Cog):
     @commands.hybrid_command(name="possum", description="Get a random possum image. 2 times/user/day.")
     @commands.cooldown(1, 86400, commands.BucketType.member)
     async def possum(self, ctx) -> None:
-        url = get_random_animal_image("poss")
-        await ctx.send(embed=create_animal_embed(url))
+        await ctx.send(get_random_animal_image("poss"))
 
     @commands.hybrid_command(name="randomanimal", description="Get a random animal image. 1 time/user/day.")
     @commands.cooldown(1, 86400, commands.BucketType.member)
     async def random_animal(self, ctx, animal: ANIMAL_LITERAL) -> None:
-        url = get_random_animal_image(animal)
-        await ctx.send(embed=create_animal_embed(url))
+        await ctx.send(get_random_animal_image(animal))
 
     @commands.hybrid_command(name="truerandomanimal", description="Get a COMPLETELY random animal image."
                                                                   "1 time/user/day.")
