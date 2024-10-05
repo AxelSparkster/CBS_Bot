@@ -5,3 +5,4 @@ class MatchType(IntEnum):
     NO_MATCH = 0
     CBS = 1
     ROUNDONE = 2
+    CHUNITHM = 3

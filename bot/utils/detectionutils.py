@@ -11,6 +11,7 @@ from bot.utils.timeutils import format_timedelta
 
 CBS_REGEX = "(?i)combo.*based|based.*combo"
 R1_REGEX = "(?i)(round1|r1|round one|round 1).*(mn|minnesota|minneapolis|mpls)|(mn|minnesota|minneapolis|mpls).*(round1|r1|round one|round 1)"
+CHUNITHM_REGEX = "(?i)(chun|chuni|chunithm).*(upgrade|update)|(upgrade|update).*(chun|chuni|chunithm)"
 CBS_COOLDOWN = commands.CooldownMapping.from_cooldown(2, 86400, commands.BucketType.member)
         
 
@@ -20,6 +21,8 @@ def get_match_term(match_type: MatchType) -> str:
         return "combo based scoring"
     elif match_type == MatchType.ROUNDONE:
         return "Round 1 being in Minnesota"
+    elif match_type == MatchType.CHUNITHM:
+        return "Chunithm being upgraded"
     else:
         logging.warning("Unknown match type.")
 
@@ -30,6 +33,8 @@ def get_match_type(message: discord.Message) -> MatchType:
         return MatchType.CBS
     elif re.search(R1_REGEX, unidecode(message.content)):
         return MatchType.ROUNDONE
+    elif re.search(CHUNITHM_REGEX, unidecode(message.content)):
+        return MatchType.CHUNITHM
     else:
         return MatchType.NO_MATCH
 
@@ -40,6 +45,8 @@ def get_match_initmessage(match_type: MatchType) -> str:
         return "Someone just mentioned combo based scoring for the first time!"
     elif match_type == MatchType.ROUNDONE:
         return "Someone just mentioned Round 1 being in Minnesota for the first time!"
+    elif match_type == MatchType.CHUNITHM:
+        return "Someone just mentioned Chunithm being upgraded for the first time!"
     else:
         logging.warning("Unknown match type.")
 
@@ -50,6 +57,8 @@ def get_match_message(match_type: MatchType, timestring: str) -> str:
         return f"Combo-based scoring was last mentioned {timestring} ago. The timer has been reset."
     elif match_type == MatchType.ROUNDONE:
         return f"Round 1 being in Minnesota was last mentioned {timestring} ago. The timer has been reset."
+    elif match_type == MatchType.CHUNITHM:
+        return f"Chunithm being upgraded was last mentioned {timestring} ago. The timer has been reset."
     else:
         logging.warning("Unknown match type.")
 
