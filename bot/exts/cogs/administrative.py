@@ -36,6 +36,24 @@ class AdministrativeCog(commands.Cog):
             set_bot_messages_ability(True, ctx.message.guild.id)
             await ctx.send("Messages have been enabled.")
 
+    @commands.hybrid_command(name="deletemessage",
+                             description="(Owner/Admin only) Deletes a message sent by the bot.")
+    async def deletemessage(self, ctx, message_id: str) -> None:
+        if await is_owner_or_admin(ctx):
+            logging.warning(f"Deleting message for guild ID {ctx.message.guild.id}, "
+                            f"channel ID {ctx.message.channel.id}, "
+                            f"message ID {ctx.message.id}.")
+            message = await ctx.message.channel.fetch_message(message_id)
+
+            # Only allow bot messages to be deleted.
+            if message.author == ctx.bot.user:
+                logging.warning(f"Message creator was the bot, deleting.")
+                await message.delete()
+            else:
+                logging.warning(f"Message creator was not the bot, not deleting.")
+
+            await ctx.send(f"Successfully deleted message {ctx.message.id}.", ephemeral=True)
+
 
 def setup(bot):
     logging.warning("Administrative cog added.")
