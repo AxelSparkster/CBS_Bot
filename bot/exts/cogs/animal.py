@@ -52,7 +52,7 @@ class AnimalsCog(commands.Cog):
     async def random_animal(self, ctx, animal: ANIMAL_LITERAL) -> None:
         await ctx.send(get_random_animal_image(animal))
 
-    @commands.hybrid_command(name="truerandomanimal", description="Get a COMPLETELY random animal image."
+    @commands.hybrid_command(name="truerandomanimal", description="Get a COMPLETELY random animal image. "
                                                                   "1 time/user/day.")
     @commands.cooldown(1, 86400, commands.BucketType.member)
     async def true_random_animal(self, ctx) -> None:

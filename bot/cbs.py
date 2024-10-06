@@ -27,12 +27,12 @@ DISCORD_CLIENT = commands.Bot(command_prefix="$cbs ", intents=INTENTS)
 async def on_message(message):
     ctx = await DISCORD_CLIENT.get_context(message)
 
-    # Check to see if we're allowed to send the message first
-    if not await can_message(ctx):
-        return
-
     # Always ignore bot messages
     if ctx.message.author.bot:
+        return
+
+    # Check to see if we're allowed to send the message first
+    if not await can_message(ctx):
         return
 
     # See if the user has said any "key terms".
