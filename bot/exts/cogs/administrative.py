@@ -49,10 +49,11 @@ class AdministrativeCog(commands.Cog):
             if message.author == ctx.bot.user:
                 logging.warning(f"Message creator was the bot, deleting.")
                 await message.delete()
+                await ctx.send(f"Successfully deleted message {ctx.message.id}.", ephemeral=True)
             else:
                 logging.warning(f"Message creator was not the bot, not deleting.")
+                await ctx.send(f"Did not delete message {ctx.message.id}, was a user message.", ephemeral=True)
 
-            await ctx.send(f"Successfully deleted message {ctx.message.id}.", ephemeral=True)
 
 
 def setup(bot):
