@@ -32,7 +32,7 @@ def create_animal_embed(url: str) -> discord.Embed:
 
 def get_rating() -> str:
     ratings = ['SSS+', 'SSS', 'SS+', 'SS', 'S+', 'S', 'A', 'B', 'C', 'D']
-    weights = [0.0001, 0.0005, 0.001, 0.03, 0.05, 0.1, 0.5, 0.2, 0.1, 0.0184]
+    weights = [0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.4, 0.2, 0.1, 0.05]
     random_rating = np.random.choice(ratings, 1, p=weights)
     return str(random_rating[0])
 
