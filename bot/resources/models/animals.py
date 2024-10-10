@@ -6,7 +6,7 @@ ANIMAL_LITERAL = Literal["fox", "yeen", "dog", "manul", "snek", "poss", "serval"
                          "shiba", "racc", "dook", "ott", "snep", "woof", "capy", "bear", "bun",
                          "caracal", "puma", "mane", "marten", "wah", "skunk", "jaguar", "yote"]
 
-RATING_MAPPINGS = {"SSS+": {"color": discord.Color.from_rgb(255, 255, 0)},
+RATING_MAPPINGS = {"SSS+": {"color": discord.Color.from_rgb(255, 255, 255)},
                   "SSS": {"color": discord.Color.from_rgb(204, 0, 102)},
                   "SS+": {"color": discord.Color.from_rgb(204, 0, 0)},
                   "SS": {"color": discord.Color.from_rgb(255, 51, 0)},
