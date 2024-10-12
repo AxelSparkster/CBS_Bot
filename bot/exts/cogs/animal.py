@@ -1,12 +1,15 @@
+import datetime
 import discord
 import logging
 import random
 import requests
 import numpy as np
-from discord.ext import commands
+from dateutil import tz
+from discord.ext import tasks, commands
 from typing import get_args
 from bot.resources.models.animals import ANIMAL_LITERAL, RATING_MAPPINGS
 
+RESET_TIME = datetime.time(hour=5, minute=0) # Reset at midnight (5AM UTC)
 
 def get_random_animal_image(animal: str) -> str:
     response = requests.get("https://api.tinyfox.dev/img.json", {'animal': animal})
@@ -22,7 +25,6 @@ def n(rating: str) -> str:
 def create_animal_embed(url: str) -> discord.Embed:
     rating = get_rating()
     color = RATING_MAPPINGS[rating]["color"]
-    logging.warning(f"Color: {color}.")
     embed = discord.Embed(color=RATING_MAPPINGS[rating]["color"],
                           title=f'Congratulations!',
                           description=f'You rolled a{n(rating)} **{rating}** tier animal.')
@@ -41,8 +43,17 @@ class AnimalsCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self._last_member = None
+        self.reset_animal_commands.start()
 
-    @commands.hybrid_command(name="possum", description="Get a random possum image. 2 times/user/day.")
+    @tasks.loop(time=RESET_TIME)
+    async def reset_animal_commands(self):
+        logging.warning(f"Daily animal reset has activated.")
+        animals_cog = self.bot.get_cog("AnimalsCog")
+        for command in animals_cog.walk_commands():
+            logging.warning(f"Resetting cooldown of command {command.name}.")
+            command.cooldown.reset()
+
+    @commands.hybrid_command(name="possum", description="Get a random possum image. 1 time/user/day.")
     @commands.cooldown(1, 86400, commands.BucketType.member)
     async def possum(self, ctx) -> None:
         await ctx.send(get_random_animal_image("poss"))
