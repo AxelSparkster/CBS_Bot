@@ -22,7 +22,6 @@ def n(rating: str) -> str:
 def create_animal_embed(url: str) -> discord.Embed:
     rating = get_rating()
     color = RATING_MAPPINGS[rating]["color"]
-    logging.warning(f"Color: {color}.")
     embed = discord.Embed(color=RATING_MAPPINGS[rating]["color"],
                           title=f'Congratulations!',
                           description=f'You rolled a{n(rating)} **{rating}** tier animal.')
