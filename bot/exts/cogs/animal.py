@@ -41,7 +41,7 @@ class AnimalsCog(commands.Cog):
         self.bot = bot
         self._last_member = None
 
-    @commands.hybrid_command(name="possum", description="Get a random possum image. 2 times/user/day.")
+    @commands.hybrid_command(name="possum", description="Get a random possum image. 1 times/user/day.")
     @commands.cooldown(1, 86400, commands.BucketType.member)
     async def possum(self, ctx) -> None:
         await ctx.send(get_random_animal_image("poss"))
